@@ -1,0 +1,178 @@
+---
+title: "2019 Cover Cleaning"
+output: html_document
+date: "2023-06-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+### Libraries and Files
+
+```{r, eval=TRUE, echo=TRUE, warning=TRUE, message=FALSE}
+
+## Clear environment 
+rm(list=ls())
+
+## Libraries
+# Import excel files
+
+library(readxl)
+
+# Data cleaning and visualization
+library(tidyverse)
+
+# Community ecology functions (NMDS, diversity indices, etc.)
+library(vegan)
+
+# Export dataframes to excel files
+library(writexl)
+
+
+
+# Needed in order to install and load the pairwiseAdonis package
+## install.packages("devtools")
+## library(devtools)
+## install_github("pmartinezarbizu/pairwiseAdonis/pairwiseAdonis")
+
+
+```
+
+```{r, eval=TRUE, echo=FALSE, warning=TRUE, message=FALSE}
+setwd("/Users/wynnekat/Desktop/2019 cleaned cover")
+
+# Data sets
+Spring_Cover_Cleaned <- read_excel("Cleaned_Spring_Cover_Data_July_2019.xlsx")
+Fall_Cover_Cleaned <- read_excel("Cleaned_Fall_Cover_Data_September_2019.xlsx")
+
+
+# Species lists
+All_Cover_2019_Species_List <- read_excel("All_Cover_2019_Species_List.xlsx")
+Wynne.Specimen.Vouchering <- read_excel("Wynne.Specimen.Vouchering.xlsx")
+```
+
+
+```{r}
+# Make transect a factor 
+Spring_Cover$Transect <- as.factor(Spring_Cover$Transect)
+Fall_Cover_Cleaning$transect <- as.factor(Fall_Cover_Cleaning$transect) 
+
+# Remove unneccesary columns
+
+Spring_Cover_Reduced <- Spring_Cover[, -c(5,6)]
+Fall_Cover_Cleaning_Reduced <- Fall_Cover_Cleaning[, -c(6,7)]
+
+## Data Cleaning
+### General Data Cleaning 
+# Checking to make sure all the SPP6 levels are correct (no misspellings or weirdness)
+sort(unique(Spring_Cover_Reduced$Species))
+
+
+```
+
+```{r, results = 'hide',echo=FALSE,  message = FALSE, warning = FALSE}
+## Data Cleaning
+### General Data Cleaning 
+# Checking to make sure all the SPP6 levels are correct (no misspellings or weirdness)
+
+
+Spring_Cover_Reduced$num <- rep(1, nrow(Spring_Cover_Reduced))
+
+Spring_2019_Species_Cover_List <- Spring_Cover_Reduced %>% 
+  group_by(Species, Scientific_Name) %>% 
+  summarize(frequency = sum(num))
+
+
+write_xlsx(Spring_2019_Species_Cover_List, "Spring_2019_Species_Cover_List.xlsx")
+
+```
+
+
+```{r, results = 'hide',echo=FALSE, message = FALSE, warning = FALSE}
+# Code to lump certain species together
+Fall_Cover_Cleaning_Reduced <- Fall_Cover_Cleaning_Reduced
+for(i in 1:nrow(Fall_Cover_Cleaning_Reduced)){
+  
+  if(Fall_Cover_Cleaning_Reduced[i,4] == "dicacu"){Fall_Cover_Cleaning_Reduced[i,4] <- "diclan"}
+  if(Fall_Cover_Cleaning_Reduced[i,4] == "cerfon"){Fall_Cover_Cleaning_Reduced[i,4] <- "cerspp"}
+}  
+
+
+```
+
+```{r}
+names_fall <- left_join(Fall_Cover_Cleaning_Reduced, Spring_2019_Species_Cover_List, by = "Species")
+names_fall <- names_fall[, -7]
+
+
+Fall_2019_Species_Cover_List <- names_fall %>% 
+  group_by(Species, Scientific_Name) %>% 
+  summarize(frequency = sum(cover))
+
+
+#write_xlsx(Fall_2019_Species_Cover_List, "Fall_Species_list_cover_2019.xlsx")
+
+Fall_Cover_Cleaned <- left_join(Fall_Cover_Cleaning_Reduced, Fall_species, by = "Species")
+
+
+sort(unique(Fall_Cover_Cleaned$Species))
+sort(unique(Fall_Cover_Cleaned$Scientific_Name))
+
+```
+
+
+```{r}
+Fall_Cover_Cleaned <- Fall_Cover_Cleaned %>% 
+  group_by(site, transect, plot, Species, Scientific_Name) %>% 
+  summarize(cover = sum(cover))
+
+
+# Make a new dataframe (Uni_Seed) to analyze whether there are differences in the amount of seed dispersal occurring between sites
+checking <- Fall_Cover_Cleaned %>% 
+  
+# Make new column named "UniqueTran" to make a unique ID for each transect at each site 
+## (e.g. Tucker Prairie Transect 1 = TP_1)
+  
+  unite("UniqueTranPlot", site:plot, sep = "_", remove = FALSE) %>% 
+# Sum the total of seeds caught for each unique transect 
+## (totseeds = total number of seeds captured in each transect)
+  
+  group_by(site, transect, plot, UniqueTranPlot)  %>% 
+  summarize(totcover = sum(cover))
+
+
+# Checking to make sure  nothing other than
+# pfca1_7_1, pfca1_7_2, TP_7_2, TP_7_3, TP_7_4, and TP_7_5 are missing
+ 
+sort(unique(checking$UniqueTranPlot))
+
+## Everything else looks good
+```
+```{r}
+#write_xlsx(Fall_Cover_Cleaned, "Cleaned_Fall_Cover_Data_September_2019.xlsx")
+
+
+Cover_2019_Species_List <- full_join(Fall_species, Spring_2019_Species_Cover_List[,-3])
+
+#write_xlsx(Cover_2019_Species_List, "Cover_2019_Species_List.xlsx")
+```
+
+
+```{r}
+Wynne.Specimen.Vouchering2 <- Wynne.Specimen.Vouchering %>% 
+  unite("Scientific_Name", Genus:Species, sep = " ", na.rm = TRUE)
+
+
+Wynne.Specimen.Vouchering2$Frequency <- rep(1, nrow(Wynne.Specimen.Vouchering2)) 
+
+Wynne.Specimen.Vouchering3 <- Wynne.Specimen.Vouchering2 %>% 
+  group_by(Scientific_Name) %>% 
+  summarize(Frequency = sum(Frequency))
+
+
+Vouchers <- full_join(All_Cover_2019_Species_List, Wynne.Specimen.Vouchering3, by = "Scientific_Name")
+
+```

@@ -1,0 +1,2431 @@
+---
+title: "SR_SB_Veg_Analysis"
+output: 
+  html_document:
+    smart: no
+    theme: flatly
+    float: yes
+    css: "style.css"    
+editor_options: 
+  chunk_output_type: console
+mainfont: Arial
+mathfont: Arial
+fontsize: 12pt
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#  {.tabset .tabset-pills .tabset-fade}
+
+## About
+
+
+### **Seed rain, seed bank, and vegetational dynamics of north-central Missouri remnant and reconstructed tallgrass prairies**
+
+**Background**: 
+
+**Author:** Katherine Wynne ([Wynnekat\@msu.edu](mailto:Wynnekat@msu.edu){.email})
+
+**Co-authors:** E. Eyerly, L. Sullivan
+
+**Created:** 14 June 2023
+
+------------------------------------------------------------------------
+
+**Files:**
+
+1)  *Cleaned_Spring_Cover_Data_July_2019.xlsx* - contains spring p/a cover data
+
+2)  *Cleaned_Fall_Cover_Data_September_2019.xlsx* - contains fall % cover data
+
+3)  *Seed_Rain_Data_2019_FINAL.xlsx* - contains seed rain data
+
+4)  *Seed_Bank_2020_Cleaned.xlsx* - contains seed bank data
+
+5)  *SR_Traits_Dataset.xlsx* - contains trait data (work in progress)
+
+
+------------------------------------------------------------------------
+
+**R Version:** R 4.2.2
+
+**RStudio Version:** 2023.03.0+386
+
+**Package Version:** 
+
+**Last updated: 16 June 2023**
+
+------------------------------------------------------------------------
+
+
+### -----
+
+## Setup
+
+### Libraries
+
+```{r}
+
+### --- Dataset importing and exporting -----
+
+# Import in excel files
+library(readxl)
+
+# Export dataframes to excel files
+
+library(writexl)
+
+### ---- Data manipulation and visualization ---- 
+
+# General data cleaning, manipulation, and visualization
+library(tidyverse)
+
+# 
+library(vegan)
+
+#
+library(maditr)
+
+
+### ---- Model fitting and analysis ---- 
+
+# Mixed-models 
+
+  ## Fits mixed models
+    library(lme4)
+
+  ## Functions to analyze significance and R^2 components of mixed-models
+    library(lmerTest)
+
+  ## 
+    library(car)
+
+# Summary stats
+
+  ## 
+    library(mosaic)
+
+
+```
+
+
+### Import Data
+
+```{r}
+setwd("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets")
+
+spring_cover <- read_excel("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets/Vegetative Cover Data 2019/Cleaned_Spring_Cover_Data_July_2019.xlsx")
+
+fall_cover <- read_excel("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets/Vegetative Cover Data 2019/Cleaned_Fall_Cover_Data_September_2019.xlsx")
+
+
+seed_rain <- read_excel("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets/Seed Rain 2019/Seed_Rain_Data_2019_FINAL.xlsx")
+
+seed_bank <- read_excel("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets/Seed Bank 2020/Seed_Bank_2020_Cleaned.xlsx")
+
+traits <- read_excel("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets/Traits and Species Info/SR_SB_VEG_Traits_Dataset.xlsx")
+
+```
+
+### -----
+
+## Methods
+
+### Data Collection & Experimental Design
+
+**Study Sites**
+
+Our study sites were at Tucker Prairie Research Area (38○56’53.6” N, 91○59’40.0” W, Callaway County, MO) and at Prairie Fork Conservation Area (38○58’29.7” N, 91○44’03.3” W, Callaway County, MO). Tucker Prairie is a 59-hectare tract of unplowed North American tallgrass claypan prairie. Less than 0.5 % of intact tallgrass prairie ecosystem (i.e., never-been-plowed) remains in Missouri, and Tucker Prairie represents the last sizable remnant prairie in north central Missouri (Samson & Knopf, 1994). More than 250 species of plants inhabit Tucker Prairie, with representatives from 57 families and over 150 genera (Tropicos, n.d.). Native C4 grasses dominate the landscape including Sorghastrum nutans, Andropogon gerardii, Schizachyrium scoparium, and Sporobolus heterolepis (Drew, 1947; Rabinowitz & Rapp, 1980). Before 1957, Tucker Prairie was used for cattle grazing and occasional haying (Drew, 1947). From 1958 to 2002, Tucker Prairie was burned once every four years in the late winter or early spring (Rabinowitz & Rapp, 1980). Since 2002, Tucker Prairie has been managed on a 5-year burn rotation, where units are burned once in the late winter to early spring (Jan. – Mar.) and again 2-3 years later in the late summer to early fall (Aug. – Oct.). 
+
+Prairie Fork Conservation Area (PFCA) is over 450 hectares of former agricultural land being restored to tallgrass prairie and savanna ecosystems (Navarrete-Tindall et al., 2007; Newbold et al., 2019). From 2004 onwards, 16-25 hectares are newly seeded each year with native prairie species collected from Tucker Prairie and other nearby remnant prairies (Newbold et al., 2019). As a result, the plots within PFCA represent a chronosequence of reconstructed tallgrass prairies that are mainly comprised of Tucker Prairie descendants. Prior to seeding, glyphosate-resistant crops (i.e., corn and soybeans) are planted and harvested for at least three years to reduce the existing weed seed bank (Newbold et al., 2019). A seed mix containing an average of 179 species of native forbs, legumes, grasses, rushes, and sedges are broadcast seeded at a rate of 13.4 to 18.2 kg/ha once during the dormant season (Newbold et al., 2019). All mixes are comprised of at least 75% of the same species each year that are representative of nearby remnant prairies such as Tucker Prairie (Newbold et al., 2019). Reconstructions are managed using a 2-4-year burn schedule and annual spraying of invasive species (Newbold et al., 2019). For additional details on PFCA management, see Newbold et al. 2019. To capture changes in seed rain dynamics during the restoration process, we grouped our reconstructed sites into three categories, as defined by Newbold et al. (2019) as being compositionally different. We measured the seed rain in an old reconstruction (seeded in 2004), middle aged reconstruction (seeded in 2012 and 2013), and a young reconstruction (seeded in 2017). 
+
+**Seed rain sampling**
+
+In May 2019, we deployed artificial turf grass seed traps (0.1 x 0.1 m) in Tucker Prairie and at each of the focal PFCA restorations. We used artificial turf grass traps instead of sticky traps due to their durability and resistance to freezing (Molau & Per Mølgaard, 1996; Bass, 2015). Turfgrass traps also do not lose effectiveness over time, like sticky traps, which are prone to contamination by soil, non-seed plant debris, and dead insects, making seed recovery difficult (Arruda et al., 2020).  Furthermore, unlike funnel traps, they are easy to install and collect with minimal disturbance to surrounding vegetation and soil and do not fill with water (Schott, 1995). At each site, we randomly established ten, 5 m long transects, placed a minimum of 50 m apart from each other. We then placed traps at 1 m intervals along each transect and affixed them to the ground using ground staples (n = 5 traps per transect, 50 traps per site). We collected and replaced seed traps every 2-weeks during the growing season from May 31st to December 12th, 2019. Hereafter we refer to all captured diaspores as “seeds” despite catching a variety of fruit types (e.g., achene). After collection, all traps from a transect and sampling period were grouped together and sieved through a series of soil sieves (1 mm, 500 mm, 250 mm mesh). From these layers, we then picked out and identified seeds to the lowest taxonomic level possible using a reference collection of species inhabiting our study areas and identification guides (Coons et al., n.d.; A. C. Martin & Barkley, 1961). 
+
+Because of their extremely small size (0.3 – 0.5 mm; Yatskievych, 1999), we estimated the number of rush seeds (Juncus sp.) when there were over 200 seeds present in a sample. We first sieved the samples through 180 mm and 150 mm mesh soil sieves. Then we subsampled each sieved layer by calculating the average number of rush seeds per 1 cm2 area (n = 3) and multiplying that average by the total area covered by the sample layer. Lastly, we summed the number of estimated rush seeds per layer to calculate the total number of rush seeds in a sample.
+
+
+
+**Vegetation sampling**
+
+In 2019, at the same transects, we sampled species cover twice, once in the early summer (June - July) and again at peak biomass (September). During the first sampling period, we only recorded species presence. At peak biomass, we also sampled percent aerial species cover in a 1m2 area centered around each seed rain trap. We identified species according to Yatskievych (1999). 
+
+**Seed bank sampling**
+
+In March 2020, before the growing season, we collected soil samples to assess the soil seed bank at each focal prairie.  To compare the soil seed bank and the previous year’s seed rain, we collected 5 (10 x 10 x 10 cm3; 1000 cm3) soil cores approximately 0.5 m away from where we captured seed rain at each transect in 2019.  We allowed the soil samples to dry before removing all non-seed plant material (e.g., roots and rhizomes) to ensure seedlings only germinated from seeds. We then homogenized all samples collected from a particular transect and subsampled ~1500 cm3 of soil to spread ~1 cm deep over sterile potting soil in plastic germination trays. Starting July 2020, we placed the trays (n = 40) in a greenhouse and watered them when dry. Amongst the 40 trays containing soil samples, we also placed an additional 10 trays containing only sterile potting soil to assess whether any contamination occurred from external sources.  Once identifiable, we removed seedlings from trays.  After germination ceased in July 2021, we placed all trays into a cold room for ~4 months to replicate conditions necessary to break dormancy for any still dormant seeds. Post-vernalization, we returned the trays to the greenhouse, stirred the soil samples, and monitored for any additional germination. We ended the study one year post-vernalization. 
+
+
+### -----
+
+## General Dataset Cleaning
+
+```{r}
+
+# Make the six letter species codes for the spring and fall cover uppercase
+
+spring_cover[[3]] <- toupper(spring_cover[[3]])
+
+fall_cover[[4]] <- toupper(fall_cover[[4]])
+
+# Remove unnecessary columns from datasets
+
+### Spring cover - Only keep Site, Transect, SPP6, Scientific Name
+
+spring_cover <- spring_cover[,-c(5,6)]
+
+### Fall cover - Keep everything
+
+### Seed rain - Only keep Plot, Transect, Sampling Date, Week, SPP6, Number, Unknown
+
+seed_rain <- seed_rain[, -c(7,8)]
+
+### Seed bank - Keep everything
+
+
+# Change names of columns to better reflect datasets (e.g. seed rain: number -> Number_Seeds)
+
+colnames(seed_bank) <- c("Site", "Transect",  "SPP6", "Number_Seedlings")
+
+colnames(seed_rain) <- c("Site", "Transect",  "Sampling_Date", "Week", "SPP6", "Number_Seeds", "Unknown")
+
+
+# Change transect PFCA 2 - 10A to just 10 for the cover datasets
+
+spring_cover <- spring_cover %>% 
+  mutate_if(is.character, 
+                 str_replace_all, pattern = "10A", replacement = "10")
+
+fall_cover <- fall_cover %>%
+  mutate_if(is.character, 
+                 str_replace_all, pattern = "10a", replacement = "10")
+
+
+# Make Transect and Plot variables factors for all datasets
+
+## Spring cover
+
+spring_cover$Transect <- as.factor(spring_cover$Transect)
+
+## Fall cover
+
+fall_cover$Transect <- as.factor(fall_cover$Transect)
+fall_cover$Plot <- as.factor(fall_cover$Plot)
+
+## Seed Bank
+
+seed_bank$Transect <- as.factor(seed_bank$Transect)
+
+## Seed Rain
+
+seed_rain$Transect <- as.factor(seed_rain$Transect)
+
+```
+
+### Lump everything to transect level data (total number of seeds per transect, total number of seedlings per transect, total amount of fall cover per transect)
+
+```{r}
+####### Clean Spring
+
+# 0.) Make a frequency column 
+
+spring_cover$Cover <- rep(1, nrow(spring_cover)) 
+
+```
+
+```{r}
+####### Clean Fall
+
+# 0.) Make anything less than 1 = 1
+
+fall_cover <- fall_cover %>% 
+  mutate(Cover = ifelse(Cover < 1, 1, Cover))
+
+# 1.) get a sum per species per transect of cover.
+
+fall_sum <- fall_cover %>%
+              group_by(Site, Transect, SPP6, Scientific_Name) %>%
+              summarize(Cover = sum(Cover))
+fall_sum
+```
+
+```{r}
+####### Seed Rain
+
+# 1.) get a sum per species per transect of cover.
+
+seed_rain_sum <- seed_rain %>%
+              group_by(Site, Transect, SPP6) %>%
+              summarize(Number_Seeds = sum(Number_Seeds))
+
+# Clean in the same way you did the seed rain analysis
+
+for(i in 1:nrow(seed_rain_sum)){
+  if(seed_rain_sum[i,3] == "AGAFAS"){seed_rain_sum[i,3] <- "AGASPP"}
+  if(seed_rain_sum[i,3] == "EUPSER"){seed_rain_sum[i,3] <- "EUPSPP"}
+  if(seed_rain_sum[i,3] == "GENPUB"){seed_rain_sum[i,3] <- "GENSPP"}
+}
+```
+
+```{r}
+####### Seed Bank
+
+# 1.) get a sum per species per transect of cover.
+
+seed_bank_sum <- seed_bank %>%
+              group_by(Site, Transect, SPP6) %>%
+              summarize(Number_Seedlings = sum(Number_Seedlings))
+
+```
+
+
+### Remove Unknowns from Data sets
+
+```{r}
+####### Remove Spring Unknowns
+
+spring_cover <- filter(spring_cover, !grepl('UNK', SPP6))
+
+# Looks good
+list(unique(spring_cover$SPP6))
+```
+
+```{r}
+####### Remove Fall Unknowns
+
+fall_sum <- filter(fall_sum, !grepl('UNK', SPP6))
+
+# Looks good
+list(unique(fall_sum$SPP6))
+```
+
+```{r}
+####### Remove Seed Rain Unknowns
+
+# 1.) get a sum per species per transect of cover.
+
+
+seed_rain_sum <- filter(seed_rain_sum, !grepl('UNK', SPP6))
+seed_rain_sum <- filter(seed_rain_sum, !grepl('PANICUM?', SPP6))
+seed_rain_sum <- filter(seed_rain_sum, !grepl('NONE', SPP6))
+
+# Looks good
+list(unique(seed_rain_sum$SPP6))
+```
+
+```{r}
+####### Remove Seed Bank Unknowns
+
+seed_bank_sum<- filter(seed_bank_sum, !grepl('UNK', SPP6))
+
+# Looks good
+list(sort(unique(seed_bank_sum$SPP6)))
+```
+### -----
+
+## Merge Spring and Fall cover
+
+```{r}
+
+# Full join the two cover data sets
+cover_merged <- full_join(spring_cover, fall_sum, by = c("Site", "Transect", "SPP6", "Scientific_Name", "Cover")) %>%
+                 mutate_all(~replace(., is.na(.), 0))
+
+# Make sure there is no weirdness in the join
+
+#View(cover_merged) 
+
+
+### Group by and then select the SPP6 with the max cover between the two datasets
+
+  ### Since Spring only had presence/absence we don't want to inflate the fall cover artificially if we saw that species again
+
+cover_merged_max <- cover_merged   %>%
+      group_by(Site, Transect, SPP6, Scientific_Name) %>%
+      summarise(Cover=max(Cover))
+
+## Not excatly sure what to do about SYMSPP and KUMSPP (things we couldn't ID in the spring but could in the fall)
+
+    ### Going to drop SYMSPP from the dataset since every plot that had SYMSPP in the spring had identified                    Symphyotrichum in the fall 
+
+cover_merged_max  <- filter(cover_merged_max , !grepl('SYMSPP', SPP6))
+
+    ### Checked KUMSPP only PFCA 2 - 3 and PFCA 2 - 9 did not see Kummerowia again in the fall; will drop KUMSPP for all other plots
+
+          ### Removes all the PFCA 1 KUMSPPs
+
+cover_merged_max <- cover_merged_max[!(cover_merged_max$SPP6%in%"KUMSPP" & cover_merged_max$Site%in% "PFCA 1"),]
+
+         ### Removes all PFCA 2 KUMSPPs that were not in PFCA 2 - 3 and PFCA 2- 9
+
+cover_merged_max <- cover_merged_max[!(cover_merged_max$SPP6%in%"KUMSPP" & cover_merged_max$Site%in% "PFCA 2" & cover_merged_max$Transect%in% c(2,4,5,8)),]
+
+
+### Check all the species codes
+
+sort(unique(cover_merged_max$SPP6))
+```
+### -----
+
+## Merge Cover and Seed Rain
+
+```{r}
+### Cover grouping so that it works with the seed rain dataset
+
+# Code to lump certain species together
+
+cover_to_merge_rain <- cover_merged_max
+
+for(i in 1:nrow(cover_to_merge_rain)){
+  
+  # Group all Symphyotrichum except SYMNOV
+
+  ## SYMPIL
+  ## SYMLAN
+  ## SYMLAT
+  ## SYMERI
+  ## SYMANO
+  ## SYMLAE
+  ## SYMPRA
+  ## SYMOBL
+  ## SYMOOL
+
+  
+  if(cover_to_merge_rain[i,3] == "SYMPIL"){cover_to_merge_rain[i,3] <- "SYMSPP"}
+  if(cover_to_merge_rain[i,3] == "SYMLAN"){cover_to_merge_rain[i,3] <- "SYMSPP"}
+  if(cover_to_merge_rain[i,3] == "SYMLAT"){cover_to_merge_rain[i,3] <- "SYMSPP"}
+  if(cover_to_merge_rain[i,3] == "SYMERI"){cover_to_merge_rain[i,3] <- "SYMSPP"}
+  if(cover_to_merge_rain[i,3] == "SYMANO"){cover_to_merge_rain[i,3] <- "SYMSPP"}
+  if(cover_to_merge_rain[i,3] == "SYMLAE"){cover_to_merge_rain[i,3] <- "SYMSPP"}
+  if(cover_to_merge_rain[i,3] == "SYMPRA"){cover_to_merge_rain[i,3] <- "SYMSPP"}
+  if(cover_to_merge_rain[i,3] == "SYMOBL"){cover_to_merge_rain[i,3] <- "SYMSPP"}
+  if(cover_to_merge_rain[i,3] == "SYMOOL"){cover_to_merge_rain[i,3] <- "SYMSPP"}
+  
+
+# Group all Carex
+  ## CARBIC
+
+   if(cover_to_merge_rain[i,3] == "CARBIC"){cover_to_merge_rain[i,3] <- "CARSPP"} 
+  
+# Group all Kummerowia
+  ## KUMSTI
+  ## KUMSTR
+  
+  if(cover_to_merge_rain[i,3] == "KUMSTI"){cover_to_merge_rain[i,3] <- "KUMSPP"} 
+  if(cover_to_merge_rain[i,3] == "KUMSTR"){cover_to_merge_rain[i,3] <- "KUMSPP"} 
+  
+  
+# Group all Juncus
+  ## JUNMAR
+  ## JUNBBRA
+  
+  if(cover_to_merge_rain[i,3] == "JUNMAR"){cover_to_merge_rain[i,3] <- "JUNSPP"} 
+  if(cover_to_merge_rain[i,3] == "JUNBRA"){cover_to_merge_rain[i,3] <- "JUNSPP"} 
+  
+
+# Group all Agalinis
+  ## AGATEN
+  ## AGAFAS
+  
+  
+  if(cover_to_merge_rain[i,3] == "AGATEN"){cover_to_merge_rain[i,3] <- "AGASPP"} 
+  if(cover_to_merge_rain[i,3] == "AGAFAS"){cover_to_merge_rain[i,3] <- "AGASPP"} 
+  
+
+# Group all Eleocharis
+  ## ELETEN 
+
+  if(cover_to_merge_rain[i,3] == "ELETEN"){cover_to_merge_rain[i,3] <- "ELESPP"} 
+  
+  
+# Group all Gentian
+  ## GENPUB
+  ## GENAND
+  
+    if(cover_to_merge_rain[i,3] == "GENPUB"){cover_to_merge_rain[i,3] <- "GENSPP"} 
+    if(cover_to_merge_rain[i,3] == "GENAND"){cover_to_merge_rain[i,3] <- "GENSPP"} 
+  
+# Group all Setaria except Setaria parviflora
+  ## SETGLA
+  ## SETFAB
+  
+   if(cover_to_merge_rain[i,3] == "SETGLA"){cover_to_merge_rain[i,3] <- "SETSPP"} 
+   if(cover_to_merge_rain[i,3] == "SETFAB"){cover_to_merge_rain[i,3] <- "SETSPP"} 
+  
+  
+# Group all Veronica 
+  ## VERARV
+  
+   if(cover_to_merge_rain[i,3] == "VERARV"){cover_to_merge_rain[i,3] <- "VEROSP"} 
+  
+
+# Group all Desmodium
+  ## DESSES
+  
+  if(cover_to_merge_rain[i,3] == "DESSES"){cover_to_merge_rain[i,3] <- "DESSPP"} 
+  
+  
+# Group all Eupatorium
+
+  ## EUPALT
+  ## EUPSER
+  ## EUPPER
+  
+if(cover_to_merge_rain[i,3] == "EUPALT"){cover_to_merge_rain[i,3] <- "EUPSPP"} 
+if(cover_to_merge_rain[i,3] == "EUPSER"){cover_to_merge_rain[i,3] <- "EUPSPP"} 
+if(cover_to_merge_rain[i,3] == "EUPPER"){cover_to_merge_rain[i,3] <- "EUPSPP"} 
+  
+  
+  
+# Group all Polygala
+
+  ## POLVER
+  ## POLSAN
+  
+if(cover_to_merge_rain[i,3] == "POLVER"){cover_to_merge_rain[i,3] <- "POLSPP"} 
+if(cover_to_merge_rain[i,3] == "POLSAN"){cover_to_merge_rain[i,3] <- "POLSPP"} 
+
+  
+}  
+
+### Check that it changed the codes
+
+sort(unique(cover_to_merge_rain$SPP6))
+
+
+### Sum everything by species by transect again 
+
+
+cover_to_merge_rain <- cover_to_merge_rain %>%
+              group_by(Site, Transect, SPP6, Scientific_Name) %>%
+              summarize(Cover = sum(Cover))
+
+
+
+```
+
+```{r}
+### Seed grouping so that it works with the cover dataset
+
+seed_rain_names <- left_join(seed_rain_sum, traits)
+
+rain_to_merge_cover <- seed_rain_names[,c(1,2,3,4,5)]
+
+for(i in 1:nrow(rain_to_merge_cover)){
+  
+# Group all Carex
+  ## CARBUS
+  ## CARBIC
+  ## CARANN
+  ## CARFES
+  ## CARCEP
+  
+  
+  if(rain_to_merge_cover[i,3] == "CARBUS"){rain_to_merge_cover[i,3] <- "CARSPP"}
+  if(rain_to_merge_cover[i,3] == "CARBIC"){rain_to_merge_cover[i,3] <- "CARSPP"}
+  if(rain_to_merge_cover[i,3] == "CARANN"){rain_to_merge_cover[i,3] <- "CARSPP"}
+  if(rain_to_merge_cover[i,3] == "CARFES"){rain_to_merge_cover[i,3] <- "CARSPP"}
+  if(rain_to_merge_cover[i,3] == "CARCEP"){rain_to_merge_cover[i,3] <- "CARSPP"}
+  
+ # Group all Eleocharis
+  ## ELESPP1
+ 
+  if(rain_to_merge_cover[i,3] == "ELESPP1"){rain_to_merge_cover[i,3] <- "ELESPP"}
+  
+  
+   # Group all Scirpus
+  ## ELESPP1
+ 
+  if(rain_to_merge_cover[i,3] == "SCIGEO"){rain_to_merge_cover[i,3] <- "SCISPP"}
+  if(rain_to_merge_cover[i,3] == "SCIPEN"){rain_to_merge_cover[i,3] <- "SCISPP"}
+
+
+}
+
+
+### Sum everything by species by transect again 
+
+
+rain_to_merge_cover <- rain_to_merge_cover %>%
+              group_by(Site, Transect, SPP6) %>%
+              summarize(Number_Seeds = sum(Number_Seeds))
+
+
+
+
+# Looks good
+sort(unique(rain_to_merge_cover$SPP6))
+
+```
+
+
+```{r}
+# Drop the scientific names they are causing trouble with the join
+
+cover_to_merge_rain <- cover_to_merge_rain[, -4]
+
+
+cover_rain <- full_join(cover_to_merge_rain, rain_to_merge_cover) %>%
+                 mutate_all(~replace(., is.na(.), 0))
+
+
+# Drop TP transect 7 because of missing data
+
+cover_rain <- cover_rain[!(cover_rain$Site%in%"TP" & cover_rain$Transect%in% "7"),]
+
+
+```
+
+### -----
+
+
+## Merge Cover and Seed Bank 
+
+```{r}
+### Cover grouping so that it works with the seed bank dataset
+
+# Code to lump certain species together
+
+cover_to_merge_bank <- cover_merged_max
+
+for(i in 1:nrow(cover_to_merge_bank)){
+  
+  # Group all Desmodium together
+
+  ## DESSES
+
+  if(cover_to_merge_bank[i,3] == "DESSES"){cover_to_merge_bank[i,3] <- "DESSPP"}
+
+  # Group all Cyperus together
+
+  ## CYPSTR
+  ## CYPECH
+
+  if(cover_to_merge_bank[i,3] == "CYPSTR"){cover_to_merge_bank[i,3] <- "CYPSPP"}
+  if(cover_to_merge_bank[i,3] == "CYPECH"){cover_to_merge_bank[i,3] <- "CYPSPP"}
+
+  # Group all Oenothera together
+
+  ## OENFIL
+  ## OENBIE
+  
+  if(cover_to_merge_bank[i,3] == "OENFIL"){cover_to_merge_bank[i,3] <- "OENSPP"}
+  if(cover_to_merge_bank[i,3] == "OENBIE"){cover_to_merge_bank[i,3] <- "OENSPP"}
+
+
+
+}
+
+cover_to_merge_bank <- cover_to_merge_bank %>% 
+  group_by(Site, Transect, SPP6) %>% 
+  summarize(Cover = sum(Cover))
+
+```
+
+```{r}
+### Seed Bank grouping so that it works with the cover dataset
+
+bank_to_merge_cover <- seed_bank_sum
+
+# Code to lump certain species together
+
+for(i in 1:nrow(bank_to_merge_cover)){
+  
+  # Group all Cerastium together
+
+  ## CERGLO
+
+  if(bank_to_merge_cover[i,3] == "CERGLO"){bank_to_merge_cover[i,3] <- "CERSPP"}
+
+  # Group all Cyperus together
+
+  ## DESSES
+
+  if(bank_to_merge_cover[i,3] == "CYPSTR"){bank_to_merge_cover[i,3] <- "CYPSPP"}
+  
+  # Group all the Carex together
+
+  if(bank_to_merge_cover[i,3] == "CARFES"){bank_to_merge_cover[i,3] <- "CARSPP"}
+  
+  # Group all Erigeron together
+
+  ## ERIANN
+  ## ERISTR
+
+  if(bank_to_merge_cover[i,3] == "ERIANN"){bank_to_merge_cover[i,3] <- "ERISPP"}
+  if(bank_to_merge_cover[i,3] == "ERISTR"){bank_to_merge_cover[i,3] <- "ERISPP"}
+
+  # Change Juncus interior to Juncus sp. (since we were able to ID JUNMAR in the cover but not JUNINT)
+  
+  if(bank_to_merge_cover[i,3] == "JUNINT"){bank_to_merge_cover[i,3] <- "JUNSPP"}
+  
+}
+
+bank_to_merge_cover <- bank_to_merge_cover %>% 
+  group_by(Site, Transect, SPP6) %>% 
+  summarize(Number_Seedlings = sum(Number_Seedlings))
+```
+
+```{r}
+# Drop the scientific names they are causing trouble with the join
+
+
+
+cover_bank <- full_join(cover_to_merge_bank, bank_to_merge_cover) %>%
+                 mutate_all(~replace(., is.na(.), 0))
+
+
+# Drop TP transect 7 because of missing fall cover data
+
+cover_bank <- cover_bank[!(cover_bank$Site%in%"TP" & cover_bank$Transect%in% "7"),]
+
+```
+
+### -----
+
+
+## Merge Seed Rain and Seed Bank 
+
+
+```{r}
+### Seed Bank grouping so that it works with the cover dataset
+
+bank_to_merge_rain <- seed_bank_sum
+
+# Code to lump certain species together
+
+for(i in 1:nrow(bank_to_merge_rain)){
+  
+  # Group all Cerastium together
+
+  ## CERGLO
+
+  if(bank_to_merge_rain[i,3] == "CERGLO"){bank_to_merge_rain[i,3] <- "CERSPP"}
+
+  # Group all Cyperus together
+
+  ## CYPSTR
+  
+  if(bank_to_merge_rain[i,3] == "CYPSTR"){bank_to_merge_rain[i,3] <- "CYPSPP"}
+  
+  # Group all Erigeron together
+
+  ## ERIANN
+  ## ERISTR
+
+  if(bank_to_merge_rain[i,3] == "ERIANN"){bank_to_merge_rain[i,3] <- "ERISPP"}
+  if(bank_to_merge_rain[i,3] == "ERISTR"){bank_to_merge_rain[i,3] <- "ERISPP"}
+
+  # Group all the Juncus together
+  
+  ## JUNINT
+  ## JUNMAR
+  
+  if(bank_to_merge_rain[i,3] == "JUNINT"){bank_to_merge_rain[i,3] <- "JUNSPP"}
+  if(bank_to_merge_rain[i,3] == "JUNMAR"){bank_to_merge_rain[i,3] <- "JUNSPP"}
+  
+  # Group all the Setaria together
+  
+  if(bank_to_merge_rain[i,3] == "SETFAB"){bank_to_merge_rain[i,3] <- "SETSPP"}
+  if(bank_to_merge_rain[i,3] == "SETGLA"){bank_to_merge_rain[i,3] <- "SETSPP"}
+  
+  # Group all the Symphyotrichum together
+  
+  ## SYMPIL
+  ## SYMLAE
+  
+  if(bank_to_merge_rain[i,3] == "SYMPIL"){bank_to_merge_rain[i,3] <- "SYMSPP"}
+  if(bank_to_merge_rain[i,3] == "SYMLAE"){bank_to_merge_rain[i,3] <- "SYMSPP"}
+  if(bank_to_merge_rain[i,3] == "SIMPIL"){bank_to_merge_rain[i,3] <- "SYMSPP"}
+  
+   # Group all the Kummerowia together
+  
+  ## KUMSTR
+  ## KUMSTI
+  
+  if(bank_to_merge_rain[i,3] == "KUMSTR"){bank_to_merge_rain[i,3] <- "KUMSPP"}
+  if(bank_to_merge_rain[i,3] == "KUMSTI"){bank_to_merge_rain[i,3] <- "KUMSPP"}
+  
+   # Group all the Veronica together
+  
+  ## VERPER
+
+  if(bank_to_merge_rain[i,3] == "VERPER"){bank_to_merge_rain[i,3] <- "VEROSP"}
+
+  # Group all the Eupatorium together
+  
+  ## EUPSER
+
+  if(bank_to_merge_rain[i,3] == "EUPSER"){bank_to_merge_rain[i,3] <- "EUPSPP"}
+  
+  # Merge all the Cardamine together
+  
+  ## CARHIR
+  ## CARPAR
+
+  if(bank_to_merge_rain[i,3] == "CARHIR"){bank_to_merge_rain[i,3] <- "CARDSP"}
+  if(bank_to_merge_rain[i,3] == "CARPAR"){bank_to_merge_rain[i,3] <- "CARDSP"}
+}
+
+bank_to_merge_rain <- bank_to_merge_rain %>% 
+  group_by(Site, Transect, SPP6) %>% 
+  summarize(Number_Seedlings = sum(Number_Seedlings))
+```
+
+```{r}
+rain_to_merge_bank <- seed_rain_sum
+
+for(i in 1:nrow(rain_to_merge_bank)){
+
+  # Group all Cyperus together
+
+  ## CYPSTR
+  ## CYPECH
+
+  if(rain_to_merge_bank[i,3] == "CYPSTR"){rain_to_merge_bank[i,3] <- "CYPSPP"}
+  if(rain_to_merge_bank[i,3] == "CYPECH"){rain_to_merge_bank[i,3] <- "CYPSPP"}
+
+  # Group all Oenothera together
+
+  ## OENFIL
+  ## OENBIE
+  
+  if(rain_to_merge_bank[i,3] == "OENFIL"){rain_to_merge_bank[i,3] <- "OENSPP"}
+  if(rain_to_merge_bank[i,3] == "OENBIE"){rain_to_merge_bank[i,3] <- "OENSPP"}
+
+}
+
+
+rain_to_merge_bank <- rain_to_merge_bank %>% 
+  group_by(Site, Transect, SPP6) %>% 
+  summarize(Number_Seeds = sum(Number_Seeds))
+```
+
+
+```{r}
+
+rain_bank <- full_join(bank_to_merge_rain, rain_to_merge_bank) %>%
+                 mutate_all(~replace(., is.na(.), 0))
+
+```
+
+
+### ----
+
+
+## Seed Rain and Cover Exploratory Analysis
+
+```{r}
+cover_rain_sum <- cover_rain %>% 
+  group_by(SPP6) %>% 
+  summarize(tot.cover = sum(Cover), tot.seeds = sum(Number_Seeds))
+```
+
+
+
+**Wasn't in the cover at all but we caught seeds** 
+
+
+- Amaranthus tuberculatus
+- Cardamine spp.
+- Chenopodium album 
+- Daucus carota
+- Dianthus armeria 
+- Erechtites hieracifolia
+- Hordeum pusillum
+- Ipomoea hederacea
+- Leucanthemum vulgare
+- Mollugo verticillata
+- Panicum capillare
+- Persicaria longiseta
+- Platanus occidentalis
+- Verbena hastata 
+
+
+
+**Didn't catch seeds but was in the cover**
+
+
+*Notable (> 10% cover observed)*
+
+- Baptisia australis
+- Potentilla simplex
+- Silphium laciniatum
+- Rosa carolina
+- Fragraria virginica
+- Campsis radicans
+- Parthenium integrifolium
+- Rhus copallinum
+- Solanum carolinense
+- Helianthus spp (the pressed one)
+- Baptisia bracteata
+- Antennaria neglecta
+
+*Minor ( 1% < cover < 10% observed)*
+
+- Elymus virginica
+- Rhus glabra
+- Trifolium campestre
+- Verbesina helianthoides
+- Solidago speciosa
+- Lespedeza procombens
+- Liatris spp.
+- Ranunculus abortivus
+- Juniperus virginiana
+- Trifolium spp.
+- Ulmus spp.
+- Agrostis gigantea
+- Lactuca serriola
+- Symphoricarpos orbiculatus
+- Ulmus pumila
+- Acer rubrum
+- Comandra umbellata
+- Dalea purpurea
+- Muhlenbergia spp.
+- Plantago major
+- Rosa spp.
+- Spiranthes lacera
+- Trifolium repens
+- Viola spp.
+- Zizea aurea
+
+*Trace (cover 1% observed)*
+
+- Ambrosia psilostachya
+- Asclepias syriaca
+- Desmanthus illinoensis
+- Elymus canadense
+- Helenium flexuosum
+- Lepidium densiflorum
+- Liatris squarrosa
+- Muhlenbergia glabrifolia
+- Oenothera spp. (not biennis)
+- Panicum virgatum
+- Senna marilandica
+- Sisyrinchium spp.
+- Solidago missouriensis.
+
+
+### Dissimilarity analysis
+
+
+```{r, eval=TRUE, echo=FALSE, warning=TRUE, message=FALSE}
+
+# Make copies of dataframes to do the dissimilarity analysis
+cover_to_merge_rain_dis <- cover_to_merge_rain
+rain_to_merge_cover_dis <-rain_to_merge_cover
+
+# Make a new column that identifies which community the abundance data represents
+
+## Cover dataset
+cover_to_merge_rain_dis$Type <- rep("Aboveground", nrow(cover_to_merge_rain_dis))
+
+## Seed rain dataset
+rain_to_merge_cover_dis$Type <- rep("Seed_Rain", nrow(rain_to_merge_cover_dis))
+
+
+## Rename Cover and Number of Seeds columns to "Abundance" so that they will merge together
+names(cover_to_merge_rain_dis) <- c("Site", "Transect", "SPP6", "Abundance", "Type")
+names(rain_to_merge_cover_dis) <- c("Site", "Transect", "SPP6", "Abundance", "Type")
+
+
+## Join the two dataframes
+cover_rain_dis <- full_join(cover_to_merge_rain_dis, rain_to_merge_cover_dis) %>%
+                 mutate_all(~replace(., is.na(.), 0))
+
+
+# Drop TP transect 7 because of missing data
+
+cover_rain_dis <- cover_rain_dis[!(cover_rain_dis$Site%in%"TP" & cover_rain_dis$Transect%in% "7"),]
+
+cover_rain_dis
+
+cover_rain_dis <- cover_rain_dis %>% 
+  group_by(Site, Transect, SPP6, Type) %>% 
+  summarize(Abundance = sum(Abundance))
+
+```
+
+```{r}
+# Code obtained and modified from Lauren and Anu's seed rain vs. vegetation paper
+
+
+##### run dissimilarity loops
+Cover_rain_dis_results <-matrix(nrow=0,ncol=7)
+sites <-as.vector(unique(cover_rain_dis$Site))
+
+
+for(s in 1:length(sites)){
+  temp <-subset(cover_rain_dis, Site==sites[s])
+  temp$SPP6 <- factor(as.character(temp$SPP6))
+  
+  transects <-as.vector(unique(temp$Transect))
+  
+  #for(b in 1:length(blocks)){
+    #temp_b<-subset(temp, block==blocks[b])
+
+    #plots<-as.vector(unique(temp_b$plot))
+   
+      for(t in 1:length(transects)){ 
+        
+        temp_t <- subset(temp, Transect==transects[t])
+
+        #wide form - with a row for above and belowground
+        plot_cast<-dcast(temp_t[,-c(1:2)],Type ~ SPP6, value.var="Abundance", fun.aggregate=mean,fill=0)
+        
+        #relative abundances
+        trans_tot <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"tot"))
+        names(trans_tot)[1]<-"trt"
+        
+        trans_pa <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"pa"))
+        names(trans_pa)[1]<-"trt"
+        
+        trans_int <- cbind(plot_cast$Type,trunc(plot_cast[,-1])) #integers only
+        names(trans_int)[1]<-"trt"
+        
+        trans_int_norm <- cbind(plot_cast$Type,trunc(decostand(plot_cast[,-1], "normalize")*100)) #integers only and normalize
+        names(trans_int)[1]<-"trt"
+        
+        distance_bray<-vegdist(trans_tot[,-1], method = "bray")
+        distance_jaccard <- vegdist(trans_pa[,-1], method = "jaccard")
+        distance_kulczynski<-vegdist(trans_tot[,-1], method = "kulczynski")
+        distance_cao<-vegdist(trans_int_norm[,-1], method = "cao")
+        distance_morisita<-vegdist(trans_int[,-1], method = "morisita")
+        
+
+        new.row<-c(sites[s], transects[t],distance_bray[1],distance_jaccard[1],
+                   distance_cao[1], distance_morisita[1], distance_kulczynski[1])
+        Cover_rain_dis_results <-rbind(Cover_rain_dis_results, new.row)
+    }
+  print(s/length(sites))
+}
+
+row.names(Cover_rain_dis_results)<-NULL
+Cover_rain_dis_results<- data.frame(Cover_rain_dis_results)
+
+names(Cover_rain_dis_results) <- c("Site", "Transect", "dissimilarity_bray", "dissimilarity_jaccard",
+                    "dissimilarity_cao", "dissimilarity_morisita", "dissimilarity_kulczynski")
+
+```
+
+
+```{r, eval=TRUE, echo=FALSE, warning=TRUE, message=FALSE}
+
+Cover_rain_dis_results$dissimilarity_bray <- as.numeric(Cover_rain_dis_results$dissimilarity_bray)
+Cover_rain_dis_results$dissimilarity_jaccard <- as.numeric(Cover_rain_dis_results$dissimilarity_jaccard)
+Cover_rain_dis_results$dissimilarity_cao <- as.numeric(Cover_rain_dis_results$dissimilarity_cao)
+Cover_rain_dis_results$dissimilarity_morisita <- as.numeric(Cover_rain_dis_results$dissimilarity_morisita)
+Cover_rain_dis_results$dissimilarity_kulczynski <- as.numeric(Cover_rain_dis_results$dissimilarity_kulczynski)
+
+Cover_rain.mod.bray <- lm(dissimilarity_bray ~ Site, data=Cover_rain_dis_results)
+summary(Cover_rain.mod.bray)
+Anova(Cover_rain.mod.bray, type = "III")  
+
+ 
+### Other metrics tested
+
+# *Note* All models were highly significant that community simmilarity differed among sites (proxy for community age/successional stage). Therefore, I'm going to go with Bray-Curtis dissimilariy for further analysis. All dissimilarity measures produced this result. 
+
+Cover_rain.mod.jac  <- lm(dissimilarity_jaccard ~ Site, data=Cover_rain_dis_results)
+# summary(Cover_rain.mod.jac)
+# Anova(Cover_rain.mod.jac, type = "III") 
+
+# Younger sites are more similar than older sites - biggest difference is that PFCA 2 resembles PFCA 1 more in this measure of dissimilarity than bray curtis
+
+
+# Cover_rain.mod.cao <- lm(dissimilarity_cao ~ Site, data=Cover_rain_dis_results)
+# summary(Cover_rain.mod.cao) 
+# Anova(Cover_rain.mod.cao, type = "III")  
+
+
+# Cover_rain.mod.morisita <- lm(dissimilarity_morisita ~ Site, data=Cover_rain_dis_results)
+# summary(Cover_rain.mod.morisita)  
+# Anova(Cover_rain.mod.morisita, type = "III")   
+
+
+# Cover_rain.mod.kulczynski <- lm(dissimilarity_kulczynski ~ Site, data=Cover_rain_dis_results)
+# summary(Cover_rain.mod.kulczynski)
+# Anova(Cover_rain.mod.kulczynski, type = "III")  
+
+```
+
+### Fig. - Bray-Curtis dissimilarity
+
+```{r}
+## 95% confidence intervals 
+
+emmeans::emmeans(Cover_rain.mod.bray, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.472, 0.628, 0.687, 0.681)
+lower <- c(0.396, 0.552,  0.611, 0.601) 
+upper <- c(0.548, 0.704, 0.763,  0.761)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Cover_rain_dissimilarity <- data.frame(site, response, lower, upper)
+
+```
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+
+bray_curtis_cover_rain.plot <- ggplot()+
+  geom_jitter(data=Cover_rain_dis_results, aes(x = Site, y = dissimilarity_bray, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Cover_rain_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Cover_rain_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
+  theme_classic()+
+  labs(x = "", y = "Bray-Curtis Dissimilarity", title = "Aboveground - Seed Rain")+
+  ylim(-13, 110)+
+  scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+  ylim(.2,1)
+  scale_y_continuous(breaks=seq(0,1,by=.2))
+
+bray_curtis_cover_rain.plot
+
+```
+
+### Fig. - Jaccard dissimilarity figure
+
+```{r}
+## 95% confidence intervals 
+
+emmeans::emmeans(Cover_rain.mod.jac, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.480, 0.462, 0.589, 0.542)
+lower <- c(0.440, .423,  0.550, 0.500) 
+upper <- c(0.519, 0.502, 0.628,  0.583)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Cover_rain_jac_dissimilarity <- data.frame(site, response, lower, upper)
+
+```
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+bray_curtis_cover_rain.plot <- ggplot()+
+  geom_jitter(data=Cover_rain_dis_results, aes(x = Site, y = dissimilarity_jaccard, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Cover_rain_jac_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Cover_rain_jac_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
+  theme_classic()+
+  labs(x = "", y = "Jaccard Dissimilarity", title = "Aboveground - Seed Rain")+
+  ylim(-13, 110)+
+  scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+  ylim(.3,.7)
+  scale_y_continuous(breaks=seq(0,1,by=.15))
+
+bray_curtis_cover_rain.plot
+
+```
+
+
+#### Immigrants
+
+```{r}
+cover_rain_dis_wide <- cover_rain_dis %>% 
+  spread(SPP6, Abundance) %>% 
+  mutate_all(~replace(., is.na(.), 0)) 
+
+cover_rain_dis_long <- cover_rain_dis_wide %>% 
+  gather(key = "SPP6", value = "Abundance", 4:173) %>% 
+  spread(key = Type, Abundance) 
+
+# Get rid of columns that both have zeros
+cover_rain_dis_long_unique <- cover_rain_dis_long[!(cover_rain_dis_long$Aboveground == 0 & cover_rain_dis_long$Seed_Rain == 0),]
+
+
+# 0 = no seeds/seedlings and 1 = seeds/seedlings
+cover_rain_dis_long_unique   <- cover_rain_dis_long_unique   %>% 
+ mutate(Aboveground = if_else(Aboveground > 0, 1, 0)) %>% 
+ mutate(Seed_Rain = if_else(Seed_Rain > 0, 1, 0))
+
+# Make a new column that adds both the seed rain and aboveground presence/absence columns. Then remove rows that = 2 (shares both species)
+cover_rain_dis_long_unique$shared <- cover_rain_dis_long_unique$Aboveground + cover_rain_dis_long_unique$Seed_Rain
+  
+cover_rain_dis_long_unique2 <- cover_rain_dis_long_unique[!(cover_rain_dis_long_unique$shared == 2),]
+
+cover_rain_dis_long_unique2 <- cover_rain_dis_long_unique2[, -6]
+
+
+# Count unique taxa per site and transect for the seed bank compared to the seed rain
+
+Unique_species_aboveground_com_rain <- cover_rain_dis_long_unique2[, -5]
+
+
+Unique_species_aboveground_com_rain <- Unique_species_aboveground_com_rain %>% 
+  filter(Aboveground != 0 ) %>% 
+  group_by(Site, Transect) %>% 
+  summarize(New_Aboveground = length(unique(SPP6)))
+
+
+# Count unique taxa per site and transect for the seed rain compared to the seed bank
+
+Unique_species_rain_com_aboveground <- cover_rain_dis_long_unique2[, -4]
+
+
+Unique_species_rain_com_aboveground <- Unique_species_rain_com_aboveground %>% 
+  filter(Seed_Rain != 0 ) %>% 
+  group_by(Site, Transect) %>% 
+  summarize(New_Rain = length(unique(SPP6)))
+
+
+# Count the number of shared taxa between communities
+
+cover_rain_dis_long_shared <- cover_rain_dis_long_unique %>% 
+  filter(shared == 2) %>% 
+  group_by(Site, Transect) %>% 
+  summarize(Shared = length(unique(SPP6)))
+
+
+## Merge them together
+
+Species_counts_cover_rain <- full_join(Unique_species_aboveground_com_rain, Unique_species_rain_com_aboveground) %>% 
+    mutate_all(~replace(., is.na(.), 0)) 
+Species_counts_cover_rain  <- full_join(Species_counts_cover_rain, cover_rain_dis_long_shared) %>% 
+    mutate_all(~replace(., is.na(.), 0)) 
+
+Species_counts_cover_rain$Tot_Richness <- Species_counts_cover_rain$New_Aboveground + Species_counts_cover_rain$New_Rain + Species_counts_cover_rain$Shared
+
+
+# Count the number of species in the seed rain for each transect
+
+Species_counts_cover_rain$Tot_Rain <- Species_counts_cover_rain$New_Rain + Species_counts_cover_rain$Shared
+
+
+# Count the number of species in the seed bank for each transect
+
+Species_counts_cover_rain$Tot_Aboveground <- Species_counts_cover_rain$New_Aboveground + Species_counts_cover_rain$Shared
+
+
+## Immigrants
+
+Species_counts_cover_rain$Prop_Immigrant <- Species_counts_cover_rain$New_Rain / Species_counts_cover_rain$Tot_Aboveground
+```
+
+
+```{r}
+favstats(Species_counts_cover_rain$Prop_Immigrant~Species_counts_cover_rain$Site)
+
+# No difference in proportion of immigrant species
+## *Note* better modeled as a binomial regression?
+
+Species_counts_cover_rain.mod <- lm(Prop_Immigrant~Site, data =Species_counts_cover_rain)
+summary(Species_counts_cover_rain.mod)
+Anova(Species_counts_cover_rain.mod, type = "III")
+
+
+```
+
+```{r}
+ggplot(Species_counts_cover_rain, aes(x = Site, y = Prop_Immigrant)) +
+  geom_point()+
+  labs(x = "", y = "Proportion of immigrant species in seed rain", title = "Seed rain - Aboveground")
+
+```
+
+
+
+### Cover vs. Seed Rain - Species-level and traits
+
+### By Site
+
+```{r}
+# Make a new dataset to log the abundance variables
+
+cover_rain_log <- cover_rain
+
+
+# Do a log transformation (add the 0.1 to avoid infinite values)
+
+cover_rain_log$Cover <- log(cover_rain_log$Cover+0.1)
+cover_rain_log$Number_Seeds <- log(cover_rain_log$Number_Seeds+0.1)
+
+
+# Get rid of infinite values
+
+cover_rain_log[mapply(is.infinite, cover_rain_log)] <- 0
+```
+
+```{r}
+#cover_rain$Site <- factor(cover_rain$Site, levels = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))
+
+ggplot(cover_rain_log, aes(x = Cover, y = Number_Seeds))+
+  geom_point()+
+  facet_wrap(vars(Site), nrow = 1, strip.position = "top")+
+  geom_smooth(method = "lm") +
+  labs(x = "Log(veg. cover)", y = "Log (no. seeds)")+
+  theme(axis.text = element_text( size = 12),
+        axis.text.x = element_text( size = 12),
+        axis.title = element_text( size = 16),
+        legend.position = "none",
+        strip.text = element_text(size = 16))
+```
+
+
+### Same Plot
+
+```{r}
+ggplot(cover_rain_log, aes(x = Cover, y = Number_Seeds, color = Site))+
+  geom_point()+
+  geom_smooth(method = "lm") +
+  labs(y = "Log (Total Captured Seed Rain )", x = "Log (Total Cover )", title = "Seed rain vs cover")+
+  theme_classic() 
+```
+
+
+### Residual plots
+
+```{r}
+# Remove everything that we didn't see both cover and seeds for at a transect
+## Removing the "rare" occurrences (cover has to be greater than 1 and number of seeds greater than 10) removes the streaking apparent in the residuals
+
+
+cover_rain_filtered <- cover_rain %>% 
+  filter(Cover > 0) %>% 
+  filter(Number_Seeds > 0)
+
+```
+
+
+**Fitting the model**
+
+*Note* I tried other distributional families (gamma, inverse guassian, tweedie, negative binomial) and logging both variables and using a Normal distribution seems to be the best option when looking at the residual vs. fits plot. You do get weird streaks in the residuals though because there were so many instances of us seeing 1 or 2 seeds/cover. 
+
+```{r}
+# Fit a linear mixed-model
+mod <- lmer(log10(Number_Seeds)~log10(Cover)+(1|Site), data = cover_rain_filtered )
+
+plot(mod)
+```
+
+Histograms of the predictor and response variables after logging show why we get the streaks. They still aren't particularly Normal after logging. 
+
+```{r}
+p <-ggplot(cover_rain_filtered , aes(x=(log10(Number_Seeds)))) + 
+  geom_histogram(color="black", fill="white")+
+  labs(x = "Log(no. seeds)", y = "Frequency")
+p
+
+
+q <-ggplot(cover_rain_filtered , aes(x=log10(Cover))) + 
+  geom_histogram(color="black", fill="white")+
+  labs(x = "Log(total cover)", y = "Frequency")
+q 
+```
+
+
+Plotting the species and their associated residuals shows which species were over and under represented in the seed rain based on local vegetative cover. It does not show instances where we caught immigrating seeds (no local cover) or species with unsuccessful reproduction (no captured seeds). 
+
+```{r}
+resid.cover.rain <- residuals(mod)
+SPP6 <- cover_rain_filtered $SPP6
+Site <- cover_rain_filtered $Site
+
+resid.species.all.cover.rain  <- data.frame(SPP6, resid.cover.rain, Site)
+resid.specieslall.cover.rain  <- resid.species.all.cover.rain  %>% 
+  arrange(desc(resid.cover.rain))
+```
+
+```{r}
+#Of the species captured in both the seed rain and cover, make a plot showing which species were present in the seed rain in greater numbers than expected. 
+
+
+resid.species.all.cover.rain  %>% 
+  mutate(SPP6 = fct_reorder(SPP6, resid.cover.rain, .fun='median')) %>% 
+  ggplot(aes(x = SPP6, y = resid.cover.rain, color = Site)) +
+  labs(x = "Species", y = "Residual", title = "Seed rain vs. Cover")+
+  geom_point() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 1)+
+  ylim(-5,5)+
+  theme(axis.text = element_text( size = 12),
+        axis.text.x = element_text( size = 5),
+        axis.title = element_text( size = 16),
+        strip.text = element_text(size = 16)) +
+  annotate("text", x = 22, y = 3, label = "Overrepresented in seed rain")+annotate("text", x = 75, y = -4, label = "Underrepresented in seed rain")
+
+```
+
+
+
+Here is a plot showing which species were present in the seed rain in greater numbers than expected based on local cover. Bars represent 95% confidence intervals. Absent bars for a species indicates it was only present in the cover and seed rain in one transect. 
+
+Remember that this figure only shows species that we were able to captured both in the cover and the seed rain at a transect. Does not show anything we caught only seeds or only cover at. 
+
+The figure does line up very well with the results of Maya's seed predation study. Some of the species favored by rodents were Helianthus mollis, Sporobolus heterolepis, Desmodium canadense, Liatris aspera, and Baptisia bracteata. Based on the figure, these species or congeners also had far fewer seeds that you would expect based on local cover. Other species on this end of the spectrum are also well known to be favored by birds (e.g., American goldfinch and  bobwhite). For example, Cirsium altissimum, Silphium integrifolium, Echinacea pallida, Strophostyles leiosperma, and Ambrosia artemisiifolia. Baptisia bracteata and Baptisia alba are also known to suffer heavy pre-dispersal predation from insects at Tucker Prairie (Haddock et al. 1982). 
+
+Lysimachia lanceolata is interesting since it has a tight relationship with a rare genera of bees, Macropis. It is unclear how dependent this species is on pollination by Macropis for reproduction. 
+
+Size, both plant and seed, are also likely important factors. Based on Moles et al 2004, small plants also tend to produce many small seeds (e.g., Juncus) while large plants (e.g., Baptisia) produce fewer, large seeds with tradeoffs existing between seed size and juvenile survival. 
+
+Primary dispersal mode is likely also important here - many species high in cover but low in captured seeds have fleshy fruits. For example, Potentilla simplex, Rhus glabra, Rhus copallinum, Rosa spp., and Fragraria virginica. I believe the only fleshy fruited species we captured was Rubus spp.
+
+
+Life history strategy is also important, with annuals being grouped on the overrepresented end of the spectrum.
+
+```{r}
+resid.species.all.mean.cover.rain  <- resid.species.all.cover.rain  %>% 
+  group_by(SPP6) %>% 
+  summarize(mean.resid = mean(resid.cover.rain ),
+            sd.resid = sd(resid.cover.rain),
+            n.resid = n()) %>% 
+  mutate(se.resid = sd.resid / sqrt(n.resid),
+            lower.ci.resid = mean.resid - 1.96*((sd.resid/sqrt(n.resid))),
+            upper.ci.resid = mean.resid + 1.96*((sd.resid/sqrt(n.resid))))
+         
+```
+
+```{r}
+resid.species.all.mean.cover.rain  %>% 
+  mutate(SPP6 = fct_reorder(SPP6, mean.resid, .fun='median')) %>% 
+  ggplot(aes(x = SPP6, y = mean.resid)) +
+  xlab("Species")+
+  ylab("Residual") +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower.ci.resid, ymax = upper.ci.resid), width = 0.2, position = position_dodge(0.05))+
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 1) + 
+  ylim(-5,5) +
+  theme(axis.text = element_text( size = 10),
+        axis.text.x = element_text( size = 5),
+        axis.title = element_text( size = 16),
+        strip.text = element_text(size = 16))+
+  annotate("text", x = 22, y = 1.75, label = "Overrepresented in local seed rain")+
+  annotate("text", x = 47, y = -1, label = "Underrepresented in local seed rain")
+  
+```
+
+```{r}
+Mass_coverage <- left_join(resid.species.all.mean.cover.rain, traits)
+
+Mass_coverage  <- Mass_coverage  %>% 
+  mutate(Seed_Mass = if_else(Mean_1_Seed_Mass_g > 0, 1, 0)) %>% 
+  mutate_all(~replace(., is.na(.), 0))
+
+```
+
+```{r}
+pane1 <- Mass_coverage   %>% 
+  mutate(SPP6 = fct_reorder(SPP6, mean.resid, .fun='median')) %>% 
+  ggplot(aes(x = SPP6, y = mean.resid, color = as.factor(Seed_Mass))) +
+  xlab("Species")+
+  ylab("Residual") +
+  geom_point() +
+  scale_color_manual(values = c("black", "blue"))+
+  geom_errorbar(aes(ymin = lower.ci.resid, ymax = upper.ci.resid), width = 0.2, position = position_dodge(0.05))+
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 1) + 
+  ylim(-5,5) +
+  theme(axis.text = element_text( size = 10),
+        axis.text.x = element_text( size = 5),
+        axis.title = element_text( size = 16),
+        strip.text = element_text(size = 16))+
+  annotate("text", x = 22, y = 3, label = "Overrepresented in local seed rain")+
+  annotate("text", x = 75, y = -4, label = "Underrepresented in local seed rain")
+  
+pane1
+```
+
+### ---- 
+
+
+## Seed Bank and Vegetative Cover Exploratory Analysis
+
+```{r}
+cover_bank_sum <- cover_bank %>% 
+  group_by(SPP6) %>% 
+  summarize(tot.cover = sum(Cover), tot.seeds = sum(Number_Seedlings))
+```
+
+**Germinated but didn't observed in the cover**
+
+- Abutilon theophrasti 
+- Amaranthus tuberculatus
+- Cardamine hirsuta
+- Cardamine parviflora
+- Digitaria sanguinalis
+- Dipsacus laciniatus
+- Euphorbia humistrata
+- Hordeum pusillum 
+- Ipomoea hederacea
+- Mollugo verticillata
+- Panicum capillare
+- Panicum dichotomiflorum
+- Persicaria longiseta
+- Platanus occidentalis (likely a GH contaminate)
+- Plantago pusilla
+- Poa chapmaniana
+- Populus deltoides (likely a GH contaminate)
+- Portulaca oleracea
+- Setaria glauca
+- Toxicodendron radicans
+- Verbena hastata
+- Veronica peregrina
+- Verbascum thapsus
+
+
+Almost everything we were able to germinate that was not in the local cover were weedy annual species. Some things like the Cardamine might have been in the cover but have such an early phenology that we missed them. The two tree species might be greenhouse contaminates since the roof was partially open and these trees were right next door. 
+
+**Observed in the cover but didn't germinate**
+
+Too many to list (112 taxa)
+
+
+Clearly, only a small fraction of local species survive the transition from cover -> seed rain -> to germinable seed bank.
+
+Few perennial species were present in the germinable seed bank. 
+
+
+### Dissimilarity analysis
+
+
+```{r, eval=TRUE, echo=FALSE, warning=TRUE, message=FALSE}
+
+# Make copies of dataframes to do the dissimilarity analysis
+cover_to_merge_bank_dis <- cover_to_merge_bank
+bank_to_merge_cover_dis <-bank_to_merge_cover
+
+# Make a new column that identifies which community the abundance data represents
+
+## Cover dataset
+cover_to_merge_bank_dis$Type <- rep("Aboveground", nrow(cover_to_merge_bank_dis))
+
+## Seed bank dataset
+bank_to_merge_cover_dis$Type <- rep("Seed_Bank", nrow(bank_to_merge_cover_dis))
+
+
+## Rename Cover and Number of Seeds columns to "Abundance" so that they will merge together
+names(cover_to_merge_bank_dis) <- c("Site", "Transect", "SPP6", "Abundance", "Type")
+names(bank_to_merge_cover_dis) <- c("Site", "Transect", "SPP6", "Abundance", "Type")
+
+
+## Join the two dataframes
+cover_bank_dis <- full_join(cover_to_merge_bank_dis, bank_to_merge_cover_dis) %>%
+                 mutate_all(~replace(., is.na(.), 0))
+
+
+# Drop Control
+
+cover_bank_dis <- cover_bank_dis[!(cover_bank_dis$Site%in%"CONTROL"),]
+
+
+# Resum all the Abundance by Site, Transect, SPP6, Type to make sure there are no duplicate species columns from changing lumping level
+
+cover_bank_dis <- cover_bank_dis %>% 
+  group_by(Site, Transect, SPP6, Type) %>% 
+  summarize(Abundance = sum(Abundance))
+
+# Did it work?
+## Yes
+cover_bank_dis
+
+```
+
+```{r}
+# Code obtained and modified from Lauren and Anu's seed bank vs. vegetation paper
+## Only included Bray-Curtis and Jaccard dissimilarity matrices since the others produced similar results to these two
+
+##### run dissimilarity loops
+cover_bank_dis_results <-matrix(nrow=0,ncol=4)
+sites <-as.vector(unique(cover_bank_dis$Site))
+
+
+for(s in 1:length(sites)){
+  temp <-subset(cover_bank_dis, Site==sites[s])
+  temp$SPP6 <- factor(as.character(temp$SPP6))
+  
+  transects <-as.vector(unique(temp$Transect))
+  
+  #for(b in 1:length(blocks)){
+    #temp_b<-subset(temp, block==blocks[b])
+
+    #plots<-as.vector(unique(temp_b$plot))
+   
+      for(t in 1:length(transects)){ 
+        
+        temp_t <- subset(temp, Transect==transects[t])
+
+        #wide form - with a row for above and belowground
+        plot_cast<-dcast(temp_t[,-c(1:2)],Type ~ SPP6, value.var="Abundance", fun.aggregate=mean,fill=0)
+        
+        #relative abundances
+        trans_tot <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"tot"))
+        names(trans_tot)[1]<-"trt"
+        
+        trans_pa <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"pa"))
+        names(trans_pa)[1]<-"trt"
+        
+        
+        distance_bray<-vegdist(trans_tot[,-1], method = "bray")
+        distance_jaccard <- vegdist(trans_pa[,-1], method = "jaccard")
+
+        
+
+        new.row<-c(sites[s], transects[t],distance_bray[1],distance_jaccard[1])
+        cover_bank_dis_results  <-rbind( cover_bank_dis_results, new.row)
+    }
+  print(s/length(sites))
+}
+
+row.names(cover_bank_dis_results )<-NULL
+cover_bank_dis_results <- data.frame(cover_bank_dis_results )
+
+names(cover_bank_dis_results) <- c("Site", "Transect", "dissimilarity_bray", "dissimilarity_jaccard")
+
+```
+
+
+```{r, eval=TRUE, echo=FALSE, warning=TRUE, message=FALSE}
+
+cover_bank_dis_results$dissimilarity_bray <- as.numeric(cover_bank_dis_results$dissimilarity_bray)
+cover_bank_dis_results$dissimilarity_jaccard <- as.numeric(cover_bank_dis_results$dissimilarity_jaccard)
+
+
+Cover_bank.mod.bray <- lm(dissimilarity_bray ~ Site, data= cover_bank_dis_results)
+summary(Cover_bank.mod.bray)
+Anova(Cover_bank.mod.bray, type = "III")  
+
+ 
+### Other metrics tested
+
+# *Note* All models were highly significant that community simmilarity differed among sites (proxy for community age/successional stage). Therefore, I'm going to go with Bray-Curtis dissimilariy for further analysis. All dissimilarity measures produced this result. 
+
+Cover_bank.mod.jac  <- lm(dissimilarity_jaccard ~ Site, data=cover_bank_dis_results)
+summary(Cover_bank.mod.jac)
+Anova(Cover_bank.mod.jac, type = "III") 
+
+```
+
+### Fig. - Bray-Curtis dissimilarity
+
+```{r}
+## 95% confidence intervals 
+
+emmeans::emmeans(Cover_bank.mod.bray, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.558, 0.823, 0.872, 0.833)
+lower <- c(0.498, 0.763,  0.812, 0.773) 
+upper <- c(0.617, 0.882, 0.931,  0.892)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Cover_bank_dissimilarity <- data.frame(site, response, lower, upper)
+
+```
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+
+bray_curtis_cover_bank.plot <- ggplot()+
+  geom_jitter(data=cover_bank_dis_results, aes(x = Site, y = dissimilarity_bray, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Cover_bank_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Cover_bank_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
+  theme_classic()+
+  labs(x = "", y = "Bray-Curtis Dissimilarity", title = "Aboveground - Seed bank")+
+  ylim(-13, 110)+
+  scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+  ylim(.2,1)
+  scale_y_continuous(breaks=seq(0,1,by=.2))
+
+bray_curtis_cover_bank.plot
+
+```
+
+### Fig. - Jaccard dissimilarity figure
+
+```{r}
+## 95% confidence intervals 
+
+emmeans::emmeans(Cover_bank.mod.jac, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.783, 0.828, 0.852, 0.835)
+lower <- c(0.741, .787,  0.810, 0.793) 
+upper <- c( 0.824, 0.870, 0.894,  0.877)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Cover_bank_jac_dissimilarity <- data.frame(site, response, lower, upper)
+
+```
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+jaccard_cover_bank.plot <- ggplot()+
+  geom_jitter(data=cover_bank_dis_results, aes(x = Site, y = dissimilarity_jaccard, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Cover_bank_jac_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Cover_bank_jac_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
+  theme_classic()+
+  labs(x = "", y = "Jaccard Dissimilarity", title = "Aboveground - Seed Bank")+
+  ylim(-13, 110)+
+  scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+  ylim(.6,1)
+  scale_y_continuous(breaks=seq(0,1,by=.15))
+
+jaccard_cover_bank.plot
+
+```
+
+
+#### Cover vs. Seed Bank Figures
+
+
+
+#### By Site 
+
+
+```{r}
+# Drop Control for now
+
+cover_bank <- cover_bank[!(cover_bank$Site%in%"CONTROL"),]
+
+
+# Make a new dataset to log the abundance variables
+
+cover_bank_log <- cover_bank
+
+
+# Do a log transformation (add the 0.1 to avoid infinite values)
+
+cover_bank_log$Cover <- log(cover_bank_log$Cover+0.1)
+cover_bank_log$Number_Seedlings <- log(cover_bank_log$Number_Seedlings+0.1)
+
+# Get rid of infinite values
+
+cover_bank_log[mapply(is.infinite, cover_bank_log)] <- 0
+```
+
+```{r}
+cover_bank_log$Site <- factor(cover_bank_log$Site, levels = c("PFCA 1", "PFCA 2", "PFCA 3", "TP", "CONTROL"), labels = c("Young", "Middle", "Old", "Remnant", "Control"))
+
+ggplot(cover_bank_log, aes(x = Cover, y = Number_Seedlings))+
+  geom_point()+
+  facet_wrap(vars(Site), nrow = 1, strip.position = "top")+
+  geom_smooth(method = "lm") +
+  labs(x = "Log(veg. cover)", y = "Log (no. seedlings)", title = "Seed bank vs. Cover")+
+  theme(axis.text = element_text( size = 14),
+        axis.text.x = element_text( size = 16),
+        axis.title = element_text( size = 18),
+        legend.position = "none",
+        strip.text = element_text(size = 16))
+
+```
+
+#### Same Plot 
+
+```{r}
+ggplot(cover_bank_log, aes(x = Cover, y = Number_Seedlings, color = Site))+
+  geom_point()+
+  geom_smooth(method = "lm") +
+  labs(y = "Log (Total Germinated Seeds )", x = "Log (Total Cover )", title = "Seed bank vs cover")+
+  theme_classic() 
+```
+
+
+#### Residual plots 
+
+
+**Fitting the Model **
+
+```{r}
+
+# Remove everything that we didn't see both cover and seed bank for at a transect
+
+cover_bank_filtered <- cover_bank %>% 
+  filter(Cover > 0) %>% 
+  filter(Number_Seedlings > 0)
+
+
+
+#
+mod1 <- lmer(log(Number_Seedlings)~log(Cover)+(1|Site), data = cover_bank_filtered )
+
+
+plot(mod1)
+```
+
+
+Again we get the streaks in the residual plots.
+
+```{r}
+p1<-ggplot(cover_bank_filtered , aes(x=log(Number_Seedlings))) + 
+  geom_histogram(color="black", fill="white")
+p1
+
+q1 <-ggplot(cover_bank_filtered , aes(x=log(Cover))) + 
+  geom_histogram(color="black", fill="white")
+q1 
+
+```
+
+```{r}
+
+resid.cover.bank <- residuals(mod1)
+#resid <- filtered.mod$residuals
+
+
+SPP6 <- cover_bank_filtered $SPP6
+Site <- cover_bank_filtered $Site
+
+resid.species.all.cover.bank <- data.frame(SPP6, resid.cover.bank, Site)
+resid.specieslall.cover.bank <- resid.species.all.cover.bank %>% 
+  arrange(desc(resid.cover.bank))
+```
+
+
+```{r}
+#Of the species captured in both the seed bank and cover, make a plot showing which species were present in the seed bank in greater numbers than expected. 
+
+resid.species.all.cover.bank %>% 
+  mutate(SPP6 = fct_reorder(SPP6, resid.cover.bank, .fun='median')) %>% 
+  ggplot(aes(x = SPP6, y = resid.cover.bank, color = Site)) +
+  labs(x = "Species", y = "Residual", title = "Seed Bank vs. Cover")+
+  geom_point() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 1) +
+  theme(axis.text = element_text( size = 10),
+        axis.text.x = element_text( size = 8),
+        axis.title = element_text( size = 16),
+        strip.text = element_text(size = 16)) +
+  ylim(-4,4)+
+  annotate("text", x = 12, y = 3, label = "Overrepresented in seed bank")+annotate("text", x = 34, y = -4, label = "Underrepresented in seed bank")
+```
+
+Looking at this residual plot, disturbance tolerant annual species tend to be over represented in the seed bank compared to the local cover. These species are most likely enriched in seed banks overtime and are persistent. For example, Digitaria ischaemum, Setaria faberi, Plantago virginica, and Juncus spp. Some over representation might be because of superb dispersal ability (Eupatorium serotinum and Agrostis hyemalis). 
+
+Life history is clearly important, with annuals being more present than perennials. 
+
+The seed bank and cover had the least amount of overlap with shared species. 
+
+```{r}
+resid.species.all.mean.cover.bank <- resid.species.all.cover.bank %>% 
+  group_by(SPP6) %>% 
+  summarize(mean.resid = mean(resid.cover.bank),
+            sd.resid = sd(resid.cover.bank),
+            n.resid = n()) %>% 
+  mutate(se.resid = sd.resid / sqrt(n.resid),
+            lower.ci.resid = mean.resid - 1.96*((sd.resid/sqrt(n.resid))),
+            upper.ci.resid = mean.resid + 1.96*((sd.resid/sqrt(n.resid))))
+
+```
+
+
+```{r}
+resid.species.all.mean.cover.bank %>% 
+  mutate(SPP6 = fct_reorder(SPP6, mean.resid, .fun='median')) %>% 
+  ggplot(aes(x = SPP6, y = mean.resid)) +
+  labs(x = "Species", y = "Residual", title = "Seed Bank vs. Cover")+
+  geom_point() +
+  geom_errorbar(aes(ymin = lower.ci.resid, ymax = upper.ci.resid), width = 0.2, position = position_dodge(0.05))+
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 1) + theme(axis.text = element_text( size = 12),
+        axis.text.x = element_text( size = 8),
+        axis.title = element_text( size = 16),
+        strip.text = element_text(size = 16))+
+  ylim(-4,4)+
+  annotate("text", x = 10, y = 3, label = "Overrepresented in seed bank")+annotate("text", x = 34, y = -4, label = "Underrepresented in seed bank")
+```
+
+
+```{r}
+Mass_coverage_cover.bank <- left_join(resid.species.all.mean.cover.bank, traits)
+
+Mass_coverage_cover.bank  <- Mass_coverage_cover.bank  %>% 
+  mutate(Seed_Mass = if_else(Mean_1_Seed_Mass_g > 0, 1, 0)) %>% 
+  mutate_all(~replace(., is.na(.), 0))
+
+```
+
+```{r}
+pane2 <- Mass_coverage_cover.bank   %>% 
+  mutate(SPP6 = fct_reorder(SPP6, mean.resid, .fun='median')) %>% 
+  ggplot(aes(x = SPP6, y = mean.resid, color = as.factor(Seed_Mass))) +
+  xlab("Species")+
+  ylab("Residual") +
+  geom_point() +
+  scale_color_manual(values = c("black", "blue"))+
+  geom_errorbar(aes(ymin = lower.ci.resid, ymax = upper.ci.resid), width = 0.2, position = position_dodge(0.05))+
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 1) + 
+  ylim(-5,5) +
+  theme(axis.text = element_text( size = 10),
+        axis.text.x = element_text( size = 5),
+        axis.title = element_text( size = 16),
+        strip.text = element_text(size = 16))+
+  annotate("text", x = 16, y = 3, label = "Overrepresented in local seed bank")+
+  annotate("text", x = 32, y = -4, label = "Underrepresented in local seed bank")
+  
+pane2
+```
+
+
+### ---- 
+
+## Seed Rain and Seed Bank Exploratory  Analysis
+
+
+
+
+```{r}
+rain_bank_sum <- rain_bank %>% 
+  group_by(SPP6) %>% 
+  summarize(tot.seeds = sum(Number_Seeds), tot.seedlings = sum(Number_Seedlings))
+```
+
+
+**Germinated but didn't catch in the seed rain**
+
+- Abutilon theophrasti
+- Digitalis sanguinalis
+- Dipsacus laciniatus
+- Euphorbia humistrata
+- Lepidium densiflorum
+- Panicum dichotomiflorum
+- Plantago pusilla
+- Poa chapmaniana
+
+Mostly ruderal annual species. 
+
+**Caught in the seed rain but didn't germinate**
+
+Too many to list (61 taxa)
+
+### Dissimilarity analysis
+
+
+```{r, eval=TRUE, echo=FALSE, warning=TRUE, message=FALSE}
+
+# Make copies of dataframes to do the dissimilarity analysis
+rain_to_merge_bank_dis <- rain_to_merge_bank
+bank_to_merge_rain_dis <-bank_to_merge_rain
+
+# Make a new column that identifies which community the abundance data represents
+
+## Cover dataset
+rain_to_merge_bank_dis$Type <- rep("Seed_Rain", nrow(rain_to_merge_bank_dis))
+
+## Seed bank dataset
+bank_to_merge_rain_dis$Type <- rep("Seed_Bank", nrow(bank_to_merge_rain_dis))
+
+
+## Rename Cover and Number of Seeds columns to "Abundance" so that they will merge together
+names(rain_to_merge_bank_dis) <- c("Site", "Transect", "SPP6", "Abundance", "Type")
+names(bank_to_merge_rain_dis) <- c("Site", "Transect", "SPP6", "Abundance", "Type")
+
+
+## Join the two dataframes
+rain_bank_dis <- full_join(rain_to_merge_bank_dis, bank_to_merge_rain_dis) %>%
+                 mutate_all(~replace(., is.na(.), 0))
+
+
+# Drop Control
+
+rain_bank_dis  <- rain_bank_dis [!(rain_bank_dis$Site%in%"CONTROL"),]
+
+
+# Resum all the Abundance by Site, Transect, SPP6, Type to make sure there are no duplicate species columns from changing lumping level
+
+rain_bank_dis  <- rain_bank_dis %>% 
+  group_by(Site, Transect, SPP6, Type) %>% 
+  summarize(Abundance = sum(Abundance))
+
+# Did it work?
+## Yes
+rain_bank_dis 
+
+```
+
+```{r}
+# Code obtained and modified from Lauren and Anu's seed bank vs. vegetation paper
+## Only included Bray-Curtis and Jaccard dissimilarity matrices since the others produced similar results to these two
+
+##### run dissimilarity loops
+rain_bank_dis_results <-matrix(nrow=0,ncol=4)
+sites <-as.vector(unique(rain_bank_dis$Site))
+
+
+for(s in 1:length(sites)){
+  temp <-subset(rain_bank_dis, Site==sites[s])
+  temp$SPP6 <- factor(as.character(temp$SPP6))
+  
+  transects <-as.vector(unique(temp$Transect))
+  
+for(t in 1:length(transects)){ 
+      
+        temp_t <- subset(temp, Transect==transects[t])
+
+        #wide form - with a row for above and belowground
+        plot_cast<-dcast(temp_t[,-c(1:2)],Type ~ SPP6, value.var="Abundance", fun.aggregate=mean,fill=0)
+        
+        #relative abundances
+        trans_tot <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"tot"))
+        names(trans_tot)[1]<-"trt"
+        
+        trans_pa <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"pa"))
+        names(trans_pa)[1]<-"trt"
+        
+        
+        distance_bray<-vegdist(trans_tot[,-1], method = "bray")
+        distance_jaccard <- vegdist(trans_pa[,-1], method = "jaccard")
+
+        
+
+        new.row<-c(sites[s], transects[t],distance_bray[1],distance_jaccard[1])
+        rain_bank_dis_results  <-rbind(rain_bank_dis_results, new.row)
+    }
+  print(s/length(sites))
+}
+
+row.names(rain_bank_dis_results)<-NULL
+rain_bank_dis_results <- data.frame(rain_bank_dis_results)
+
+names(rain_bank_dis_results) <- c("Site", "Transect", "dissimilarity_bray", "dissimilarity_jaccard")
+
+```
+
+
+```{r, eval=TRUE, echo=FALSE, warning=TRUE, message=FALSE}
+
+rain_bank_dis_results$dissimilarity_bray <- as.numeric(rain_bank_dis_results$dissimilarity_bray)
+rain_bank_dis_results$dissimilarity_jaccard <- as.numeric(rain_bank_dis_results$dissimilarity_jaccard)
+
+
+Rain_bank.mod.bray <- lm(dissimilarity_bray ~ Site, data= rain_bank_dis_results)
+summary(Rain_bank.mod.bray)
+Anova(Rain_bank.mod.bray, type = "III")  
+
+ 
+### Other metrics tested
+
+# *Note* All models were highly significant that community simmilarity differed among sites (proxy for community age/successional stage). Therefore, I'm going to go with Bray-Curtis dissimilariy for further analysis. All dissimilarity measures produced this result. 
+
+Rain_bank.mod.jac  <- lm(dissimilarity_jaccard ~ Site, data=rain_bank_dis_results)
+summary(Rain_bank.mod.jac)
+Anova(Rain_bank.mod.jac, type = "III") 
+
+```
+
+### Fig. - Bray-Curtis dissimilarity
+
+```{r}
+## 95% confidence intervals 
+
+emmeans::emmeans(Rain_bank.mod.bray, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.551, 0.792, 0.731, 0.688)
+lower <- c(0.469, 0.710,  0.649, 0.606) 
+upper <- c(0.634, 0.874, 0.814,  0.771)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Rain_bank_dissimilarity <- data.frame(site, response, lower, upper)
+
+```
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+
+bray_curtis_rain_bank.plot <- ggplot()+
+  geom_jitter(data=rain_bank_dis_results, aes(x = Site, y = dissimilarity_bray, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Rain_bank_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Rain_bank_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
+  theme_classic()+
+  labs(x = "", y = "Bray-Curtis Dissimilarity", title = "Seed Rain - Seed bank")+
+  ylim(-13, 110)+
+  scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+  ylim(.2,1)
+  scale_y_continuous(breaks=seq(0,1,by=.2))
+
+bray_curtis_rain_bank.plot
+
+```
+
+### Fig. - Jaccard dissimilarity figure
+
+```{r}
+## 95% confidence intervals 
+
+emmeans::emmeans(Rain_bank.mod.jac, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.725, 0.750, 0.810, 0.765)
+lower <- c(0.682, 0.708,  0.767, 0.723) 
+upper <- c(0.767, 0.793, 0.853,  0.808)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Rain_bank_jac_dissimilarity <- data.frame(site, response, lower, upper)
+
+```
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+jaccard_rain_bank.plot <- ggplot()+
+  geom_jitter(data=rain_bank_dis_results, aes(x = Site, y = dissimilarity_jaccard, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Rain_bank_jac_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Rain_bank_jac_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
+  theme_classic()+
+  labs(x = "", y = "Jaccard Dissimilarity", title = "Seed Rain - Seed Bank")+
+  ylim(-13, 110)+
+  scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+  ylim(.5,1)
+  scale_y_continuous(breaks=seq(0,1,by=.15))
+
+jaccard_rain_bank.plot
+
+```
+
+#### Immigrants
+
+```{r}
+rain_bank_dis_wide <- rain_bank_dis %>% 
+  spread(SPP6, Abundance) %>% 
+  mutate_all(~replace(., is.na(.), 0)) 
+
+rain_bank_dis_long <- rain_bank_dis_wide %>% 
+  gather(key = "SPP6", value = "Abundance", 4:144) %>% 
+  spread(key = Type, Abundance) 
+
+# Get rid of columns that both have zeros
+rain_bank_dis_long_unique <- rain_bank_dis_long[!(rain_bank_dis_long$Seed_Bank == 0 & rain_bank_dis_long$Seed_Rain == 0),]
+
+
+# 0 = no seeds/seedlings and 1 = seeds/seedlings
+rain_bank_dis_long_unique   <- rain_bank_dis_long_unique   %>% 
+  mutate(Seed_Bank = if_else(Seed_Bank > 0, 1, 0)) %>% 
+   mutate(Seed_Rain = if_else(Seed_Rain > 0, 1, 0))
+
+# Make a new column that adds both the seed rain and seed bank presence/absence columns. Then remove rows that = 2 (shares both species)
+rain_bank_dis_long_unique$shared <- rain_bank_dis_long_unique$Seed_Bank + rain_bank_dis_long_unique$Seed_Rain
+  
+rain_bank_dis_long_unique2 <- rain_bank_dis_long_unique[!(rain_bank_dis_long_unique$shared == 2),]
+
+rain_bank_dis_long_unique2 <- rain_bank_dis_long_unique2[, -6]
+
+
+# Count unique taxa per site and transect for the seed bank compared to the seed rain
+
+Unique_species_bank_com_rain <- rain_bank_dis_long_unique2[, -5]
+
+
+Unique_species_bank_com_rain <- Unique_species_bank_com_rain %>% 
+  filter(Seed_Bank != 0 ) %>% group_by(Site, Transect) %>% 
+  summarize(New_Bank = length(unique(SPP6)))
+
+
+# Count unique taxa per site and transect for the seed rain compared to the seed bank
+
+Unique_species_rain_com_bank <- rain_bank_dis_long_unique2[, -4]
+
+
+Unique_species_rain_com_bank <- Unique_species_rain_com_bank %>% 
+  filter(Seed_Rain != 0 ) %>% 
+  group_by(Site, Transect) %>% 
+  summarize(New_Rain = length(unique(SPP6)))
+
+
+# Count the number of shared taxa between communities
+
+rain_bank_dis_long_shared <- rain_bank_dis_long_unique %>% 
+  filter(shared == 2) %>% 
+  group_by(Site, Transect) %>% 
+  summarize(Shared = length(unique(SPP6)))
+
+
+## Merge them together
+
+Species_counts_rain_bank <- full_join(Unique_species_bank_com_rain, Unique_species_rain_com_bank) %>% 
+    mutate_all(~replace(., is.na(.), 0)) 
+Species_counts_rain_bank  <- full_join(Species_counts_rain_bank, rain_bank_dis_long_shared) %>% 
+    mutate_all(~replace(., is.na(.), 0)) 
+
+Species_counts_rain_bank$Tot_Richness <- Species_counts_rain_bank$New_Bank + Species_counts_rain_bank$New_Rain + Species_counts_rain_bank$Shared
+
+
+# Count the number of species in the seed rain for each transect
+
+Species_counts_rain_bank$Tot_Rain <- Species_counts_rain_bank$New_Rain + Species_counts_rain_bank$Shared
+
+
+# Count the number of species in the seed bank for each transect
+
+Species_counts_rain_bank$Tot_Bank <- Species_counts_rain_bank$New_Bank + Species_counts_rain_bank$Shared
+
+
+## Immigrants
+
+Species_counts_rain_bank$Prop_Immigrant <- Species_counts_rain_bank$New_Bank / Species_counts_rain_bank$Tot_Rain
+```
+
+```{r}
+
+ggplot(Species_counts_rain_bank, aes(x = Site, y = Prop_Immigrant)) +
+  geom_point()
+
+```
+
+
+
+#### Seed Rain vs. Seed Bank Figures
+
+#### By Site 
+
+```{r}
+
+# Drop the control for now
+
+rain_bank <- rain_bank[!(rain_bank$Site%in%"CONTROL"),]
+
+# Make a new dataset to log the abundance variables
+
+rain_bank_log <- rain_bank
+
+
+# Do a log transformation (add the 0.1 to avoid infinite values)
+
+rain_bank_log$Number_Seedlings <- log(rain_bank_log$Number_Seedlings+0.1)
+rain_bank_log$Number_Seeds <- log(rain_bank_log$Number_Seeds+0.1)
+
+
+# Get rid of infinite values
+
+rain_bank_log[mapply(is.infinite, rain_bank_log)] <- 0
+```
+
+```{r}
+rain_bank_log$Site <- factor(rain_bank_log$Site, levels = c("PFCA 1", "PFCA 2", "PFCA 3", "TP", "CONTROL"), labels = c("Young", "Middle", "Old", "Remnant", "Control"))
+
+ggplot(rain_bank_log, aes(x = Number_Seeds, y = Number_Seedlings))+
+  geom_point()+
+  facet_wrap(vars(Site), nrow = 1, strip.position = "top")+
+  geom_smooth(method = "lm") +
+  labs(x = "Log(no. seeds)", y = "Log (no. seedlings)")+
+  theme(axis.text = element_text( size = 14),
+        axis.text.x = element_text( size = 20),
+        axis.title = element_text( size = 18),
+        legend.position = "none",
+        strip.text = element_text(size = 16))
+
+```
+
+#### Same Plot 
+
+```{r}
+ggplot(rain_bank_log, aes(x = Number_Seeds, y = Number_Seedlings, color = Site))+
+  geom_point()+
+  geom_smooth(method = "lm") +
+  labs(y = "Log (Total Captured Seed Rain )", x = "Log (Total Cover )", title = "Seed rain vs Seed Bank")+
+  theme_classic() 
+```
+
+
+#### Residual plots 
+
+```{r}
+
+# Remove everything that we didn't see both the seed rain and bank at a transect
+
+rain_bank_filtered <- rain_bank %>% 
+  filter(Number_Seedlings> 0) %>% 
+  filter(Number_Seeds > 0)
+
+#
+mod3 <- lmer(log(Number_Seedlings)~log(Number_Seeds)+(1|Site), data = rain_bank_filtered)
+
+
+plot(mod3)
+```
+
+Again we get the streaks in the residual vs. fitted values plot. 
+
+```{r}
+p2<-ggplot(rain_bank_filtered , aes(x=log(Number_Seedlings))) + 
+  geom_histogram(color="black", fill="white")
+p2
+
+q2 <-ggplot(rain_bank_filtered , aes(x=log(Number_Seeds))) + 
+  geom_histogram(color="black", fill="white")
+q2
+
+
+```
+
+```{r}
+
+resid.rain.bank<- residuals(mod3)
+
+SPP6 <- rain_bank_filtered$SPP6
+Site <- rain_bank_filtered$Site
+
+resid.species.all.rain.bank <- data.frame(SPP6, resid.rain.bank, Site)
+resid.specieslall.rain.bank <- resid.species.all.rain.bank  %>% 
+  arrange(desc(resid.rain.bank))
+```
+
+
+```{r}
+#Of the species captured in both the seed rain and bank, make a plot showing which species were present in the seed bank in greater numbers than expected. 
+
+resid.species.all.rain.bank %>% 
+  mutate(SPP6 = fct_reorder(SPP6, resid.rain.bank, .fun='median')) %>% 
+  ggplot(aes(x = SPP6, y = resid.rain.bank, color = Site)) +
+  labs(x = "Species", y = "Residual", title = "Seed Rain vs. Seed Bank") +
+  geom_point() +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 1)+
+  theme(axis.text = element_text( size = 12),
+        axis.text.x = element_text( size = 8),
+        axis.title = element_text( size = 16),
+        strip.text = element_text(size = 16))+
+  ylim(-4,4)+
+  annotate("text", x = 12, y = 3, label = "Overrepresented in seed bank")+annotate("text", x = 40, y = -4, label = "Underrepresented in seed bank")
+```
+
+```{r}
+resid.species.all.mean.rain.bank <- resid.species.all.rain.bank %>% 
+  group_by(SPP6) %>% 
+  summarize(mean.resid = mean(resid.rain.bank),
+            sd.resid = sd(resid.rain.bank),
+            n.resid = n()) %>% 
+  mutate(se.resid = sd.resid / sqrt(n.resid),
+            lower.ci.resid = mean.resid - 1.96*((sd.resid/sqrt(n.resid))),
+            upper.ci.resid = mean.resid + 1.96*((sd.resid/sqrt(n.resid))))
+
+```
+
+
+Interesting that some species underrepresented in the seed rain based on local cover are present in germinable seed bank (LYSLAN, CIRALT, STRLEI, EUTGYM, RATPIN). Does this suggest high mortality when transitionig into the seed bank and low mortality once in the seed bank? 
+
+Again, most species overrepresented in the seed bank based on local seed input are weedy and annual species. Most perennials fall on the underrepresented side of the spectrum. 
+
+Many of the native ones also seem to be species that do well in restorations (Lespedeza capitata, Ratibida pinnata, Andropogon gerardii, Sorghastrum nutans, Coreopsis lanceolata, Tradescantia ohiensis, Penstemon digitalis, Schizachyrium scoparium, Solidago altissima, Symphytrichum spp., etc.). It's probably no coincidence that these species that recruit from seed rain also do well in restorations that are broadcast seeded. I wonder if restoration practices are  accidentally selecting for species that recruit well from seed (limited dispersal opportunities and reinforcement from what initially recruits). 
+
+I think the most surprising species that germinated is Lysimachia lanceolata, which is not present in the PFCA restorations. 
+
+
+```{r}
+
+resid.species.all.mean.rain.bank %>% 
+  mutate(SPP6 = fct_reorder(SPP6, mean.resid, .fun='median')) %>% 
+  ggplot(aes(x = SPP6, y = mean.resid))  +
+  labs(x = "Species", y = "Residual", title = "Seed Rain vs. Seed Bank") +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower.ci.resid, ymax = upper.ci.resid), width = 0.2, position = position_dodge(0.05))+
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 1) + theme(axis.text = element_text( size = 12),
+        axis.text.x = element_text( size = 8),
+        axis.title = element_text( size = 16),
+        strip.text = element_text(size = 16))+
+  ylim(-4,4)+
+  annotate("text", x = 12, y = 3, label = "Overrepresented in seed bank")+annotate("text", x = 40, y = -4, label = "Underrepresented in seed bank")
+```
+
+
+```{r}
+resid.species.all.mean.rain.bank %>% 
+  mutate(SPP6 = fct_reorder(SPP6, mean.resid, .fun='median')) %>% 
+  ggplot(aes(x = SPP6, y = mean.resid)) +
+  labs(x = "Species", y = "Residual", title = "Seed Bank vs. Cover")+
+  geom_point() +
+  geom_errorbar(aes(ymin = lower.ci.resid, ymax = upper.ci.resid), width = 0.2, position = position_dodge(0.05))+
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 1) + theme(axis.text = element_text( size = 12),
+        axis.text.x = element_text( size = 8),
+        axis.title = element_text( size = 16),
+        strip.text = element_text(size = 16))+
+  ylim(-4,4)+
+  annotate("text", x = 10, y = 3, label = "Overrepresented in seed bank")+annotate("text", x = 34, y = -4, label = "Underrepresented in seed bank")
+```
+
+
+```{r}
+Mass_coverage_rain.bank <- left_join(resid.species.all.mean.rain.bank, traits)
+
+Mass_coverage_rain.bank  <- Mass_coverage_cover.bank  %>% 
+  mutate(Seed_Mass = if_else(Mean_1_Seed_Mass_g > 0, 1, 0)) %>% 
+  mutate_all(~replace(., is.na(.), 0))
+
+```
+
+```{r}
+pane3 <- Mass_coverage_rain.bank  %>% 
+  mutate(SPP6 = fct_reorder(SPP6, mean.resid, .fun='median')) %>% 
+  ggplot(aes(x = SPP6, y = mean.resid, color = as.factor(Seed_Mass))) +
+  xlab("Species")+
+  ylab("Residual") +
+  geom_point() +
+  scale_color_manual(values = c("black", "blue"))+
+  geom_errorbar(aes(ymin = lower.ci.resid, ymax = upper.ci.resid), width = 0.2, position = position_dodge(0.05))+
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 70, hjust = 1))+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 1) + 
+  ylim(-5,5) +
+  theme(axis.text = element_text( size = 10),
+        axis.text.x = element_text( size = 5),
+        axis.title = element_text( size = 16),
+        strip.text = element_text(size = 16))+
+  annotate("text", x = 16, y = 3, label = "Overrepresented in local seed rain")+
+  annotate("text", x = 32, y = -4, label = "Underrepresented in local seed rain")
+  
+pane3
+```
+
+### ---- Multipaned figures
+
+
+```{r}
+
+
+
+
+
+
+```
+
+
