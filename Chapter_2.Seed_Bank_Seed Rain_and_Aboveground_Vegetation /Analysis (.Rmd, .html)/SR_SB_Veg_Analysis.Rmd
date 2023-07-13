@@ -115,18 +115,18 @@ library(maditr)
 ### Import Data
 
 ```{r}
-setwd("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets")
-
-spring_cover <- read_excel("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets/Vegetative Cover Data 2019/Cleaned_Spring_Cover_Data_July_2019.xlsx")
-
-fall_cover <- read_excel("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets/Vegetative Cover Data 2019/Cleaned_Fall_Cover_Data_September_2019.xlsx")
 
 
-seed_rain <- read_excel("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets/Seed Rain 2019/Seed_Rain_Data_2019_FINAL.xlsx")
+spring_cover <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation /Vegetative Cover Data 2019/Cleaned_Spring_Cover_Data_July_2019.xlsx")
 
-seed_bank <- read_excel("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets/Seed Bank 2020/Seed_Bank_2020_Cleaned.xlsx")
+fall_cover <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation /Vegetative Cover Data 2019/Cleaned_Fall_Cover_Data_September_2019.xlsx")
 
-traits <- read_excel("/Users/wynnekat/Desktop/Ph.D. - PFCA and TP Project Datasets/Traits and Species Info/SR_SB_VEG_Traits_Dataset.xlsx")
+
+seed_rain <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation /Seed Rain 2019/Seed_Rain_Data_2019_FINAL.xlsx")
+
+seed_bank <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation /Seed Bank 2020/Seed_Bank_2020_Cleaned.xlsx")
+
+traits <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation /Traits and Species Info/SR_SB_VEG_Traits_Dataset.xlsx")
 
 ```
 
@@ -1052,7 +1052,7 @@ Cover_rain.mod.jac  <- lm(dissimilarity_jaccard ~ Site, data=Cover_rain_dis_resu
 
 ```
 
-### Fig. - Bray-Curtis dissimilarity
+#### Fig. - Bray-Curtis dissimilarity
 
 ```{r}
 ## 95% confidence intervals 
@@ -1093,7 +1093,7 @@ bray_curtis_cover_rain.plot
 
 ```
 
-### Fig. - Jaccard dissimilarity figure
+#### Fig. - Jaccard dissimilarity figure
 
 ```{r}
 ## 95% confidence intervals 
@@ -1134,7 +1134,10 @@ bray_curtis_cover_rain.plot
 ```
 
 
-#### Immigrants
+### Immigration
+
+
+#### Proportion of new species in the seed rain not seen in local cover
 
 ```{r}
 cover_rain_dis_wide <- cover_rain_dis %>% 
@@ -1232,13 +1235,64 @@ Anova(Species_counts_cover_rain.mod, type = "III")
 ```
 
 ```{r}
-ggplot(Species_counts_cover_rain, aes(x = Site, y = Prop_Immigrant)) +
-  geom_point()+
-  labs(x = "", y = "Proportion of immigrant species in seed rain", title = "Seed rain - Aboveground")
+prop_new_species_cover_rain.plot <- ggplot()+
+  geom_jitter(data=Species_counts_cover_rain, aes(x = Site, y = Prop_Immigrant, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  #geom_point(data = Cover_rain_jac_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  #geom_errorbar(data = Cover_rain_jac_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
+  theme_classic()+
+  labs(x = "", y = "Proportion of immigrant species in seed rain", title = "Aboveground - Seed Rain")+
+  scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))
+
+
+prop_new_species_cover_rain.plot
 
 ```
 
+#### Proportion of seeds in the seed rain not seen in local cover
 
+```{r}
+
+names(cover_rain_dis_long) <- c("Site", "Transect", "SPP6", "Aboveground_Abundance", "Seed_Rain_Abundance")
+
+
+cover_rain_dis_long_unique_abundance <- full_join(cover_rain_dis_long_unique, cover_rain_dis_long)
+
+
+cover_rain_dis_long_shared_abundance <- cover_rain_dis_long_unique_abundance %>% 
+  filter(shared == 2) %>% 
+  group_by(Site, Transect) %>% 
+  summarize(Total_Seeds = sum(Seed_Rain_Abundance))
+  
+cover_rain_dis_long_immigrant_abundance <- cover_rain_dis_long_unique_abundance %>% 
+  filter(shared == 1) %>% 
+  group_by(Site, Transect) %>% 
+  summarize(Immigrant_Seeds = sum(Seed_Rain_Abundance))
+
+
+Prop_Immigrant_Seeds <- full_join(cover_rain_dis_long_shared_abundance, cover_rain_dis_long_immigrant_abundance)
+```
+
+```{r}
+
+
+
+prop_immigrant_seeds_cover_rain.plot <- ggplot()+
+  geom_jitter(data=Prop_Immigrant_Seeds, aes(x = Site, y = (Immigrant_Seeds/Total_Seeds), color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  #geom_point(data = Cover_rain_jac_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  #geom_errorbar(data = Cover_rain_jac_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
+  theme_classic()+
+  labs(x = "", y = "Proportion of immigrant species in seed rain", title = "Aboveground - Seed Rain")+
+  scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))
+
+# The two "outlier" points are because we caught a lot of Solidago altissima and Barbarea vulgaris at these points but they weren't in the immediate cover. 
+
+prop_immigrant_seeds_cover_rain.plot
+
+```
 
 ### Cover vs. Seed Rain - Species-level and traits
 
