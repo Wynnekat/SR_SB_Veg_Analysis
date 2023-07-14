@@ -90,6 +90,10 @@ library(vegan)
 library(maditr)
 
 
+#
+library(cowplot)
+
+
 ### ---- Model fitting and analysis ---- 
 
 # Mixed-models 
@@ -1030,8 +1034,8 @@ Anova(Cover_rain.mod.bray, type = "III")
 # *Note* All models were highly significant that community simmilarity differed among sites (proxy for community age/successional stage). Therefore, I'm going to go with Bray-Curtis dissimilariy for further analysis. All dissimilarity measures produced this result. 
 
 Cover_rain.mod.jac  <- lm(dissimilarity_jaccard ~ Site, data=Cover_rain_dis_results)
-# summary(Cover_rain.mod.jac)
-# Anova(Cover_rain.mod.jac, type = "III") 
+summary(Cover_rain.mod.jac)
+Anova(Cover_rain.mod.jac, type = "III") 
 
 # Younger sites are more similar than older sites - biggest difference is that PFCA 2 resembles PFCA 1 more in this measure of dissimilarity than bray curtis
 
@@ -1082,10 +1086,9 @@ bray_curtis_cover_rain.plot <- ggplot()+
   geom_errorbar(data = Cover_rain_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
   theme_classic()+
   labs(x = "", y = "Bray-Curtis Dissimilarity", title = "Aboveground - Seed Rain")+
-  ylim(-13, 110)+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
- theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
   ylim(.2,1)
   scale_y_continuous(breaks=seq(0,1,by=.2))
 
@@ -1116,20 +1119,19 @@ Cover_rain_jac_dissimilarity <- data.frame(site, response, lower, upper)
  
 # scatterplot with 95% confidence intervals (based on model estimates!)
 
-bray_curtis_cover_rain.plot <- ggplot()+
+jaccard_cover_rain.plot <- ggplot()+
   geom_jitter(data=Cover_rain_dis_results, aes(x = Site, y = dissimilarity_jaccard, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
   geom_point(data = Cover_rain_jac_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
   geom_errorbar(data = Cover_rain_jac_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
   theme_classic()+
-  labs(x = "", y = "Jaccard Dissimilarity", title = "Aboveground - Seed Rain")+
-  ylim(-13, 110)+
+  labs(x = "", y = "Jaccard Dissimilarity", title = "")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
-  ylim(.3,.7)
+  ylim(.2,1)
   scale_y_continuous(breaks=seq(0,1,by=.15))
 
-bray_curtis_cover_rain.plot
+jaccard_cover_rain.plot
 
 ```
 
@@ -1233,6 +1235,8 @@ Anova(Species_counts_cover_rain.mod, type = "III")
 
 
 ```
+
+
 
 ```{r}
 prop_new_species_cover_rain.plot <- ggplot()+
@@ -1362,7 +1366,7 @@ cover_rain_filtered <- cover_rain %>%
 
 ```{r}
 # Fit a linear mixed-model
-mod <- lmer(log10(Number_Seeds)~log10(Cover)+(1|Site), data = cover_rain_filtered )
+mod <- lmer(log(Number_Seeds)~log(Cover)+(1|Site), data = cover_rain_filtered )
 
 plot(mod)
 ```
@@ -1479,8 +1483,7 @@ Mass_coverage  <- Mass_coverage  %>%
 pane1 <- Mass_coverage   %>% 
   mutate(SPP6 = fct_reorder(SPP6, mean.resid, .fun='median')) %>% 
   ggplot(aes(x = SPP6, y = mean.resid, color = as.factor(Seed_Mass))) +
-  xlab("Species")+
-  ylab("Residual") +
+  labs(x = "Species", y = "Residual", title = "Aboveground - Seed Rain")+
   geom_point() +
   scale_color_manual(values = c("black", "blue"))+
   geom_errorbar(aes(ymin = lower.ci.resid, ymax = upper.ci.resid), width = 0.2, position = position_dodge(0.05))+
@@ -1491,7 +1494,8 @@ pane1 <- Mass_coverage   %>%
   theme(axis.text = element_text( size = 10),
         axis.text.x = element_text( size = 5),
         axis.title = element_text( size = 16),
-        strip.text = element_text(size = 16))+
+        strip.text = element_text(size = 16),
+         legend.position = "none")+
   annotate("text", x = 22, y = 3, label = "Overrepresented in local seed rain")+
   annotate("text", x = 75, y = -4, label = "Underrepresented in local seed rain")
   
@@ -1697,11 +1701,11 @@ bray_curtis_cover_bank.plot <- ggplot()+
   geom_point(data = Cover_bank_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
   geom_errorbar(data = Cover_bank_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
   theme_classic()+
-  labs(x = "", y = "Bray-Curtis Dissimilarity", title = "Aboveground - Seed bank")+
+  labs(x = "", y = "", title = "Aboveground - Seed bank")+
   ylim(-13, 110)+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
- theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
   ylim(.2,1)
   scale_y_continuous(breaks=seq(0,1,by=.2))
 
@@ -1737,12 +1741,11 @@ jaccard_cover_bank.plot <- ggplot()+
   geom_point(data = Cover_bank_jac_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
   geom_errorbar(data = Cover_bank_jac_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
   theme_classic()+
-  labs(x = "", y = "Jaccard Dissimilarity", title = "Aboveground - Seed Bank")+
-  ylim(-13, 110)+
+  labs(x = "", y = "", title = "")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
-  ylim(.6,1)
+  ylim(.2,1)
   scale_y_continuous(breaks=seq(0,1,by=.15))
 
 jaccard_cover_bank.plot
@@ -1925,7 +1928,7 @@ Mass_coverage_cover.bank  <- Mass_coverage_cover.bank  %>%
 pane2 <- Mass_coverage_cover.bank   %>% 
   mutate(SPP6 = fct_reorder(SPP6, mean.resid, .fun='median')) %>% 
   ggplot(aes(x = SPP6, y = mean.resid, color = as.factor(Seed_Mass))) +
-  xlab("Species")+
+  labs(x = "Species", y = "Residual", title = "Aboveground - Seed Bank")+
   ylab("Residual") +
   geom_point() +
   scale_color_manual(values = c("black", "blue"))+
@@ -2120,11 +2123,10 @@ bray_curtis_rain_bank.plot <- ggplot()+
   geom_point(data = Rain_bank_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
   geom_errorbar(data = Rain_bank_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
   theme_classic()+
-  labs(x = "", y = "Bray-Curtis Dissimilarity", title = "Seed Rain - Seed bank")+
-  ylim(-13, 110)+
+  labs(x = "", y = "", title = "Seed Rain - Seed bank")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
- theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
   ylim(.2,1)
   scale_y_continuous(breaks=seq(0,1,by=.2))
 
@@ -2160,12 +2162,11 @@ jaccard_rain_bank.plot <- ggplot()+
   geom_point(data = Rain_bank_jac_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
   geom_errorbar(data = Rain_bank_jac_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
   theme_classic()+
-  labs(x = "", y = "Jaccard Dissimilarity", title = "Seed Rain - Seed Bank")+
-  ylim(-13, 110)+
+  labs(x = "", y = "", title = "")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
-  ylim(.5,1)
+  ylim(.2,1)
   scale_y_continuous(breaks=seq(0,1,by=.15))
 
 jaccard_rain_bank.plot
@@ -2424,7 +2425,7 @@ resid.species.all.mean.rain.bank %>%
 resid.species.all.mean.rain.bank %>% 
   mutate(SPP6 = fct_reorder(SPP6, mean.resid, .fun='median')) %>% 
   ggplot(aes(x = SPP6, y = mean.resid)) +
-  labs(x = "Species", y = "Residual", title = "Seed Bank vs. Cover")+
+  labs(x = "Species", y = "Residual", title = "Seed Bank vs. Seed Rain")+
   geom_point() +
   geom_errorbar(aes(ymin = lower.ci.resid, ymax = upper.ci.resid), width = 0.2, position = position_dodge(0.05))+
   theme_classic() +
@@ -2441,7 +2442,7 @@ resid.species.all.mean.rain.bank %>%
 ```{r}
 Mass_coverage_rain.bank <- left_join(resid.species.all.mean.rain.bank, traits)
 
-Mass_coverage_rain.bank  <- Mass_coverage_cover.bank  %>% 
+Mass_coverage_rain.bank  <- Mass_coverage_rain.bank   %>% 
   mutate(Seed_Mass = if_else(Mean_1_Seed_Mass_g > 0, 1, 0)) %>% 
   mutate_all(~replace(., is.na(.), 0))
 
@@ -2451,8 +2452,7 @@ Mass_coverage_rain.bank  <- Mass_coverage_cover.bank  %>%
 pane3 <- Mass_coverage_rain.bank  %>% 
   mutate(SPP6 = fct_reorder(SPP6, mean.resid, .fun='median')) %>% 
   ggplot(aes(x = SPP6, y = mean.resid, color = as.factor(Seed_Mass))) +
-  xlab("Species")+
-  ylab("Residual") +
+  labs(x = "Species", y = "Residual", title = "Seed Rain - Seed Bank")+
   geom_point() +
   scale_color_manual(values = c("black", "blue"))+
   geom_errorbar(aes(ymin = lower.ci.resid, ymax = upper.ci.resid), width = 0.2, position = position_dodge(0.05))+
@@ -2463,9 +2463,10 @@ pane3 <- Mass_coverage_rain.bank  %>%
   theme(axis.text = element_text( size = 10),
         axis.text.x = element_text( size = 5),
         axis.title = element_text( size = 16),
-        strip.text = element_text(size = 16))+
-  annotate("text", x = 16, y = 3, label = "Overrepresented in local seed rain")+
-  annotate("text", x = 32, y = -4, label = "Underrepresented in local seed rain")
+        strip.text = element_text(size = 16),
+        legend.position = "none")+
+  annotate("text", x = 16, y = 3, label = "Overrepresented in local seed bank")+
+  annotate("text", x = 32, y = -4, label = "Underrepresented in local seed bank")
   
 pane3
 ```
@@ -2475,11 +2476,17 @@ pane3
 
 ```{r}
 
+plot_grid(bray_curtis_cover_rain.plot,bray_curtis_rain_bank.plot, bray_curtis_cover_bank.plot , jaccard_cover_rain.plot, jaccard_rain_bank.plot, jaccard_cover_bank.plot , ncol = 3)
 
-
-
+# Sig differences for all except for SB-Veg Jaccard
+## Still need to do pairwise differences (contrasts? Tukey HSD?)
 
 
 ```
 
+
+```{r}
+plot_grid(pane1, pane2, pane3, ncol = 1)
+
+```
 
