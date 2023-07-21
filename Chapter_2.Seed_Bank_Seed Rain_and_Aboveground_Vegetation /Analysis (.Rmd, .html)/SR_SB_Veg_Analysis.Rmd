@@ -1024,10 +1024,23 @@ Cover_rain_dis_results$dissimilarity_cao <- as.numeric(Cover_rain_dis_results$di
 Cover_rain_dis_results$dissimilarity_morisita <- as.numeric(Cover_rain_dis_results$dissimilarity_morisita)
 Cover_rain_dis_results$dissimilarity_kulczynski <- as.numeric(Cover_rain_dis_results$dissimilarity_kulczynski)
 
+
+#Re-order the levels
+Cover_rain_dis_results$Site <- factor(Cover_rain_dis_results$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+
 Cover_rain.mod.bray <- lm(dissimilarity_bray ~ Site, data=Cover_rain_dis_results)
 summary(Cover_rain.mod.bray)
 Anova(Cover_rain.mod.bray, type = "III")  
 
+# Contrasts
+
+Cover_rain.aov.bray <- aov(Cover_rain.mod.bray)
+TukeyHSD(Cover_rain.aov.bray)
+
+# PFCA 1 - PFCA 2 0.0160642*
+# PFCA 1 - PFCA 3 0.0007822***
+# PFCA 1 - TP 0.0015759**
  
 ### Other metrics tested
 
@@ -1036,6 +1049,17 @@ Anova(Cover_rain.mod.bray, type = "III")
 Cover_rain.mod.jac  <- lm(dissimilarity_jaccard ~ Site, data=Cover_rain_dis_results)
 summary(Cover_rain.mod.jac)
 Anova(Cover_rain.mod.jac, type = "III") 
+
+# Contrasts
+
+Cover_rain.aov.jac <- aov(Cover_rain.mod.jac)
+TukeyHSD(Cover_rain.aov.jac)
+
+
+# PFCA 1 - PFCA 3 0.0017366 **
+# PFCA 2 - PFCA 3 0.0002772 ***
+# PFCA 2 - TP 0.0374144 *
+
 
 # Younger sites are more similar than older sites - biggest difference is that PFCA 2 resembles PFCA 1 more in this measure of dissimilarity than bray curtis
 
@@ -1059,6 +1083,9 @@ Anova(Cover_rain.mod.jac, type = "III")
 #### Fig. - Bray-Curtis dissimilarity
 
 ```{r}
+
+
+
 ## 95% confidence intervals 
 
 emmeans::emmeans(Cover_rain.mod.bray, "Site", type = "response")
@@ -1079,6 +1106,8 @@ Cover_rain_dissimilarity <- data.frame(site, response, lower, upper)
  
 # scatterplot with 95% confidence intervals (based on model estimates!)
 
+#Re-order the levels
+Cover_rain_dis_results$Site <- factor(Cover_rain_dis_results$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
 
 bray_curtis_cover_rain.plot <- ggplot()+
   geom_jitter(data=Cover_rain_dis_results, aes(x = Site, y = dissimilarity_bray, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
@@ -1656,19 +1685,35 @@ names(cover_bank_dis_results) <- c("Site", "Transect", "dissimilarity_bray", "di
 cover_bank_dis_results$dissimilarity_bray <- as.numeric(cover_bank_dis_results$dissimilarity_bray)
 cover_bank_dis_results$dissimilarity_jaccard <- as.numeric(cover_bank_dis_results$dissimilarity_jaccard)
 
+#Re-order the levels
+cover_bank_dis_results$Site <- factor(cover_bank_dis_results$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+# Bray-Curtis dissimilarity
 
 Cover_bank.mod.bray <- lm(dissimilarity_bray ~ Site, data= cover_bank_dis_results)
 summary(Cover_bank.mod.bray)
 Anova(Cover_bank.mod.bray, type = "III")  
 
- 
-### Other metrics tested
+# Contrasts
+Cover_bank.aov.bray <- aov(Cover_bank.mod.bray)
+TukeyHSD(Cover_bank.aov.bray)
 
-# *Note* All models were highly significant that community simmilarity differed among sites (proxy for community age/successional stage). Therefore, I'm going to go with Bray-Curtis dissimilariy for further analysis. All dissimilarity measures produced this result. 
+### PFCA 2 - PFCA 1 ***
+### PFCA 3 - PFCA 1 ***
+### TP - PFCA ***
+
+
+# Jaccard dissimilarity 
 
 Cover_bank.mod.jac  <- lm(dissimilarity_jaccard ~ Site, data=cover_bank_dis_results)
 summary(Cover_bank.mod.jac)
 Anova(Cover_bank.mod.jac, type = "III") 
+
+# Contrasts
+Cover_bank.aov.jac <- aov(Cover_bank.mod.jac)
+TukeyHSD(Cover_bank.mod.jac)
+
+### PFCA 1 - PFCA 3 .
 
 ```
 
@@ -1694,6 +1739,11 @@ Cover_bank_dissimilarity <- data.frame(site, response, lower, upper)
 ```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
  
 # scatterplot with 95% confidence intervals (based on model estimates!)
+
+
+#Re-order the levels
+cover_bank_dis_results$Site <- factor(cover_bank_dis_results$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+
 
 
 bray_curtis_cover_bank.plot <- ggplot()+
@@ -2079,19 +2129,36 @@ rain_bank_dis_results$dissimilarity_bray <- as.numeric(rain_bank_dis_results$dis
 rain_bank_dis_results$dissimilarity_jaccard <- as.numeric(rain_bank_dis_results$dissimilarity_jaccard)
 
 
+#Re-order the levels
+rain_bank_dis_results$Site <- factor(rain_bank_dis_results$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+
+# Bray-curtis
+
+
 Rain_bank.mod.bray <- lm(dissimilarity_bray ~ Site, data= rain_bank_dis_results)
 summary(Rain_bank.mod.bray)
 Anova(Rain_bank.mod.bray, type = "III")  
 
- 
-### Other metrics tested
+Rain_bank.aov.bray  <- aov(Rain_bank.mod.bray)
+TukeyHSD(Rain_bank.aov.bray)
 
-# *Note* All models were highly significant that community simmilarity differed among sites (proxy for community age/successional stage). Therefore, I'm going to go with Bray-Curtis dissimilariy for further analysis. All dissimilarity measures produced this result. 
+## PFCA 1 - PFCA 2 0.0009414 ***
+## PFCA 1 - PFCA 3 0.0171829 *
+## PFCA 1 - TP 0.0981225 .
+
+ 
+# Jaccard
 
 Rain_bank.mod.jac  <- lm(dissimilarity_jaccard ~ Site, data=rain_bank_dis_results)
 summary(Rain_bank.mod.jac)
 Anova(Rain_bank.mod.jac, type = "III") 
 
+
+Rain_bank.aov.jac <- aov(Rain_bank.mod.jac)
+TukeyHSD(Rain_bank.aov.jac)
+
+## PFCA 1 - PFCA 3  0.0327730 *
 ```
 
 ### Fig. - Bray-Curtis dissimilarity
