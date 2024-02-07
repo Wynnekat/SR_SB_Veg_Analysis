@@ -1173,6 +1173,13 @@ bray_curtis_cover_rain.plot <- ggplot()+
 
 bray_curtis_cover_rain.plot
 
+
+
+bray_curtis_cover_rain.plot <- bray_curtis_cover_rain.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_seed.png",
+  x = .6, y = .5, width = .25
+)
+
 ```
 
 #### Fig. - Jaccard dissimilarity figure
