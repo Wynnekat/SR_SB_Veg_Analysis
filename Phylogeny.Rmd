@@ -1,0 +1,59 @@
+---
+title: "Phylogeny"
+output: html_document
+date: "2024-01-11"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Make Species list
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(rtrees)
+```
+
+```{r}
+traits <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation /Traits and Species Info/SR_SB_VEG_Traits_Dataset.xlsx")
+
+# Pull out just the Scientific name and Family
+species_uncleaned <- traits[,c(3,12)]
+
+
+# filter out anything that is unknown
+species_uncleaned <- filter(species_uncleaned , !grepl('Unk', Scientific_Name))
+species_uncleaned <- filter(species_uncleaned , !grepl('1', Scientific_Name))
+
+### need these columns
+## Species (seperated with an _)
+## genus 
+## family
+
+species_df <- species_uncleaned %>% 
+  separate(Scientific_Name, into = c("genus", "species"), sep = " ")
+
+
+united_species <- species_df  %>% 
+  unite(species, 1:2 , sep = "_")
+
+united_species  <- united_species [,-2]
+
+
+species_df$species <- united_species $species
+
+```
+
+```{r}
+### Used the megatree from Brown and Smith 2018
+
+test_tree <- get_tree(sp_list = species_df,
+                      taxon = "plant",
+                      scenario = "at_basal_node",
+                      show_grafted = TRUE)
+
+plot(test_tree, no.margin = T, type = "fan", cex = 0.5)
+```
+
