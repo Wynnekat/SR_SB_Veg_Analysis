@@ -1,0 +1,472 @@
+---
+title: "Cut code"
+output: html_document
+date: "2024-02-07"
+---
+
+## ---- Seed Mass - Individual Communities
+
+
+#### ---- Cover
+
+```{r}
+# From the cover dataset combine with the trait dataset
+## Remove species where I don't have any seed mass data
+
+cover_merged_max 
+
+cover_mass <- left_join(cover_merged_max, traits, by = "SPP6") %>% 
+  filter(Mean_1_Seed_Mass_g > 0)
+
+
+cover_mass_lumped <- cover_mass %>% 
+ group_by(SPP6, Site, Mean_1_Seed_Mass_g) %>% 
+ summarize(total.cover = sum(Cover))
+
+
+cover_mass_lumped$Mean_1_Seed_Mass_mg <- cover_mass_lumped$Mean_1_Seed_Mass_g *1000
+
+
+```
+
+```{r}
+ggplot(cover_mass_lumped , aes(x=total.cover)) + 
+  geom_histogram(color="black", fill="white")
+
+```
+
+```{r}
+
+
+# Fit a gamma model predicting cover abundance by site and mass
+mod.gamma <- glm(total.cover ~ log10(Mean_1_Seed_Mass_mg)+log10(Mean_1_Seed_Mass_mg):Site, family = Gamma(link = log), data=cover_mass_lumped)
+
+
+ # Fit an inverse gaussian model predicting cover abundance by site and mass (with interaction between site and mass)
+
+#mod.inv.gaussian.interaction <- glm(total.cover ~ log10(Mean_1_Seed_Mass_mg)+log10(Mean_1_Seed_Mass_mg):Site, family = inverse.gaussian(link = log), data=cover_mass_lumped)
+
+## Inverse guassian does the best job deviance-wise
+
+summary(mod.gamma)$deviance
+#summary(mod.inv.gaussian.interaction)$deviance
+
+#  Model summary and analysis of deviance
+summary(mod.gamma)
+anova(mod.gamma, test = "Chisq")
+
+## Only mass is predictive of mean cover
+
+mod.gamma <- glm(total.cover ~ log10(Mean_1_Seed_Mass_mg), family = Gamma(link = log), data=cover_mass_lumped)
+
+summary(mod.gamma)
+```
+
+
+```{r, message = FALSE, echo = FALSE, warning = FALSE}
+options(scipen=999)
+
+seedmass.cover.plot <- ggplot(cover_mass_lumped, aes(x = Mean_1_Seed_Mass_mg, y = total.cover)) + geom_point() +
+scale_x_continuous(trans='log10') +
+  geom_smooth(color = "blue",
+              method = "glm",
+              method.args = list(family = Gamma(link = "log"))) +
+  labs(x = "Seed mass (mg) [log 10 scale]", y = "Total Cover")+
+  theme_classic() +
+  theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))
+  
+seedmass.cover.plot
+
+
+```
+
+
+#### ---- Seed Rain
+
+
+```{r}
+# From the cover dataset combine with the trait dataset
+## Remove species where I don't have any seed mass data
+
+seed_rain  
+
+seed_rain_mass <- left_join(seed_rain , traits, by = "SPP6") %>% 
+  filter(Mean_1_Seed_Mass_g > 0)
+
+
+All_Captured_Sum <- seed_rain_mass %>% 
+ group_by(SPP6, Site, Transect, Mean_1_Seed_Mass_g) %>% 
+ summarize(total.seeds = sum(Number_Seeds))
+
+
+All_Captured_Sum$Mean_1_Seed_Mass_mg <- All_Captured_Sum$Mean_1_Seed_Mass_g * 1000
+
+All_Captured_Sum$Seed_Rain_Density <- All_Captured_Sum$total.seeds / 0.5
+```
+
+```{r}
+ggplot(All_Captured_Sum , aes(x=Seed_Rain_Density)) + 
+  geom_histogram(color="black", fill="white")
+
+```
+
+
+```{r}
+
+
+# Fit a gamma model predicting cover abundance by site and mass
+mod.gamma.SR <- glm(Seed_Rain_Density ~ log10(Mean_1_Seed_Mass_mg)+log10(Mean_1_Seed_Mass_mg):Site, family = Gamma(link = log), data=All_Captured_Sum)
+
+
+## Couldn't fit an inverse gaussian so went with the gamma model
+
+#  Model summary and analysis of deviance
+summary(mod.gamma.SR)
+anova(mod.gamma.SR, test = "Chisq")
+
+## Only mass is predictive of mean cover
+
+mod.gamma.SR <- glm(Seed_Rain_Density ~ log10(Mean_1_Seed_Mass_mg), family = Gamma(link = log), data=All_Captured_Sum)
+
+summary(mod.gamma.SR)
+```
+
+
+```{r, message = FALSE, echo = FALSE, warning = FALSE}
+options(scipen=999)
+
+# Seed rain density vs. seed mass (mg)
+## Density = sum of all seeds captured for a species at each site divided by total trapping area at a site (0.5 m^2) 
+
+seedmass.quantity.plot <- ggplot(All_Captured_Sum, aes(x = Mean_1_Seed_Mass_mg, y = Seed_Rain_Density)) +
+ geom_point()+
+ scale_x_continuous(trans='log10') +
+  geom_smooth(color = "blue",
+              method = "glm",
+              method.args = list(family = Gamma(link = "log")))  +
+ labs(x = "Seed mass (mg) [log 10 scale]", y = "Seeds"~m^-2)+
+ theme_classic() +
+theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))
+  
+seedmass.quantity.plot
+
+
+```
+
+
+#### ---- Seed Bank
+
+
+```{r}
+seed_bank_sum <- seed_bank_sum %>% 
+  filter(Site != "CONTROL")
+
+seed_bank_mass <- left_join(seed_bank_sum, traits, by = "SPP6") %>% 
+  filter(Mean_1_Seed_Mass_g > 0)
+
+seed_bank_mass_lumped  <- seed_bank_mass  %>% 
+ group_by(SPP6, Site, Mean_1_Seed_Mass_g) %>% 
+ summarize(total.seedlings = sum(Number_Seedlings))
+
+
+seed_bank_mass_lumped$Mean_1_Seed_Mass_mg <- seed_bank_mass_lumped$Mean_1_Seed_Mass_g * 1000
+
+# fix the density
+# sampled 0.5 m^2 worth of area from each site but subsampled
+## subsamples were 1500 cm^3 spread to 1 cm depth (38.73 cm x 38.73 cm) in trays.
+## the volume of this is 1500 cm^3 or 0.15 m^3
+## 0.15 m^3 * 10 transects = 1.5 m^3 per site.
+
+seed_bank_mass_lumped$Seed_Bank_Density <- seed_bank_mass_lumped$total.seedlings / 1.5
+```
+
+```{r}
+ggplot(seed_bank_mass_lumped , aes(x=Seed_Bank_Density)) + 
+  geom_histogram(color="black", fill="white")
+
+```
+
+
+```{r}
+
+
+# Fit a gamma model predicting cover abundance by site and mass
+mod.gamma.SB.interaction <- glm(Seed_Bank_Density  ~ log10(Mean_1_Seed_Mass_mg)+log10(Mean_1_Seed_Mass_mg):Site, family = Gamma(link = log), data=seed_bank_mass_lumped )
+
+mod.gamma.SB <- glm(Seed_Bank_Density  ~ log10(Mean_1_Seed_Mass_mg), family = Gamma(link = log), data=seed_bank_mass_lumped )
+
+
+ # Fit an inverse gaussian model predicting cover abundance by site and mass (with interaction between site and mass)
+
+#mod.inv.gaussian.interaction.SB <- glm(Seed_Bank_Density ~ log10(Mean_1_Seed_Mass_mg)+log10(Mean_1_Seed_Mass_mg):Site, family = inverse.gaussian(link = log), data=seed_bank_mass_lumped)
+
+#mod.inv.gaussian.SB <- glm(Seed_Bank_Density ~ log10(Mean_1_Seed_Mass_mg), family = inverse.gaussian(link = log), data=seed_bank_mass_lumped)
+
+
+## Inverse guassian without site does the best job deviance-wise
+
+summary(mod.gamma.SB.interaction)$deviance
+summary(mod.gamma.SB)$deviance
+#summary(mod.inv.gaussian.interaction)$deviance
+#summary(mod.inv.gaussian.SB)$deviance
+
+#  Model summary and analysis of deviance
+summary(mod.gamma.SB)
+
+## No relationship between germinable seed bank and mass
+
+
+```
+
+
+```{r, message = FALSE, echo = FALSE, warning = FALSE}
+options(scipen=999)
+
+# Seed rain density vs. seed mass (mg)
+## Density = sum of all seeds captured for a species at each site divided by total trapping area at a site (0.5 m^2) 
+
+seedmass.bank.plot <- ggplot(seed_bank_mass_lumped, aes(x = Mean_1_Seed_Mass_mg, y = Seed_Bank_Density)) +
+ geom_point()+
+ scale_x_continuous(trans='log10') +
+ labs(x = "Seed mass (mg) [log 10 scale]", y = "Germinable seeds"~m^-3)+
+ theme_classic() +
+theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))
+  
+seedmass.bank.plot
+```
+
+
+## ---- Mass - Comparing communities
+
+
+
+### --- Aboveground vs. Seed Rain
+
+
+
+```{r}
+cover_rain_mass <- left_join(cover_rain, traits) %>% 
+  filter(Mean_1_Seed_Mass_g > 0)
+
+# median seed mass
+
+cover_rain_median <- cover_rain_mass %>% 
+  group_by(SPP6, Mean_1_Seed_Mass_g) %>% 
+  summarize(tot.cover = sum(Cover), tot.seeds = sum(Number_Seeds))
+  
+median(cover_rain_median$Mean_1_Seed_Mass_g)
+
+# 0.001 (lets say you are small if you are less than 0.001 g and big if you are greater than 0.001 g)
+
+
+cover_rain_mass$Big_small <- ifelse(cover_rain_mass$Mean_1_Seed_Mass_g > median(cover_rain_median$Mean_1_Seed_Mass_g), 1, 0)
+cover_rain_mass$Big_small <- as.factor(cover_rain_mass$Big_small )
+
+
+cover_rain_mass_lumped <- cover_rain_mass %>% 
+  group_by(SPP6, Site, Transect, Mean_1_Seed_Mass_g, Big_small) %>% 
+  summarize(tot.cover = sum(Cover), tot.seeds = sum(Number_Seeds))
+
+
+trait_cover_rain <- left_join(cover_rain_mass_lumped, traits)
+
+trait_cover_rain_reduced <- trait_cover_rain[, c("tot.seeds", "Big_small", "tot.cover", "Provenance", "Mean_1_Seed_Mass_g", "Functional_Group", "Life_History", "Site")]
+
+trait_cover_rain_reduced <- na.omit(trait_cover_rain_reduced)
+```
+
+```{r}
+# TRIED A VARIETY OF MODELS
+## Best fitting model that makes statistical sense is a generalized linear model using a log link negative binomial distribution to predict local seed input as a function of local cover (log10 + 1), seed size (small = < median and large = > median), and an interaction between Site and seed size. 
+
+## Despite the large amounts of zeros, a ZIP model performed worse and did not reveal any new information regarding the zeros. A hurdle model using a binomial distribution to predict likelihood of catching as seed and truncated negative binomial distribution did the best. However, it is likely incorrect to model these as two separate proccesses instead of the same process. 
+
+
+## As expected, there is a strong positive relationship between the amount of local cover and local seed input for a species. I modeled this relationship directly (each point represents a species at a transect and site) sense I am interested in local processess and not site level. This means there are multiple points for a species. 
+
+## Seed size was a very influential factor. 
+## Essentially, we captured far more small seeded species at similar amounts of cover compared to large seeded species. This could reflect small-seeded species being far more fecund than large-seeded species. Large seeded species may also be more dispersal limited than small seeded species since we captured very few seeds despite high amounts of local cover. Large seeded species may be worse dispersers or preferentially targeted by seed predators (pre dispersal and/or post dispersal). We know that some genera like Baptisia experience very high levels of pre-dispersal (> 90% of pods consumed) and moderate levels of post-dispersal predation (~ 45% of seeds are consumed). 
+
+## Site was also an influential factor
+### We already know that PFCA 1 has crazy levels of seed input compared to other restorations and a nearby remnant prairie. 
+
+## An interaction between seed size and site was influential
+### This is most apparent with PFCA 1
+### Could be related to an increased presense in non-native species. We know that non-native species often have greater propagule pressure than native congeners.
+  
+
+nb.mod.site <- glmer.nb(tot.seeds ~ Provenance + Big_small + Functional_Group + Life_History + log10(1+tot.cover)+(1|Site), data = trait_cover_rain_reduced)
+
+summary(nb.mod.site )
+Anova(nb.mod.site , type = "3")
+AIC(nb.mod.site)
+
+
+
+anova(nb.mod.site, test = "Chisq")
+summary(nb.mod.site)
+
+
+```
+
+
+```{r}
+
+check_model(nb.mod.site)
+check_overdispersion(nb.mod.site)
+check_zeroinflation(nb.mod.site)
+
+
+```
+
+
+```{r}
+ggplot(data = cover_rain_mass_lumped, aes(x = (1+tot.cover), y = tot.seeds, group = Big_small, color = Big_small, shape = Site))+
+  scale_x_continuous(trans='log10') +
+  geom_point()+
+  geom_smooth(method = "glm.nb", aes(group = Big_small)) +
+  theme_classic()+
+ labs(x = "Local aboveground cover [log 10 + 1]", y = "Local seed input")+
+ theme_classic() +
+theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))+
+  ylim(0, 6000)+
+  scale_color_discrete(name = "Seed Size",
+                       breaks = c("0", "1"),
+                       labels = c("Small", "Large"))+
+scale_shape_discrete(name = "Site",
+                       breaks = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"),
+                       labels = c("Young", "Middle", "Old", "Remnant"))
+```
+
+
+```{r}
+ggplot(data = cover_rain_mass_lumped, aes(x = (1+tot.cover), y = 1+tot.seeds, group = Big_small, color = Big_small, shape = Site))+
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10')  +
+  geom_point()+
+  geom_smooth(method = "lm", aes(group = Big_small)) +
+  theme_classic()+
+ labs(x = "Local aboveground cover [log 10 + 1]", y = "Local seed input")+
+ theme_classic() +
+theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))+
+  scale_color_discrete(name = "Seed Size",
+                       breaks = c("0", "1"),
+                       labels = c("Small", "Large"))+
+scale_shape_discrete(name = "Site",
+                       breaks = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"),
+                       labels = c("Young", "Middle", "Old", "Remnant"))
+```
+
+
+
+### --- Seed Rain vs. Seed bank
+
+
+```{r}
+rain_bank_mass <- left_join(rain_bank, traits) %>% 
+  filter(Mean_1_Seed_Mass_g > 0)
+
+# median seed mass
+
+median(rain_bank_mass$Mean_1_Seed_Mass_g)
+
+# 0.001 (lets say you are small if you are less than 0.001 g and big if you are greater than 0.001 g)
+
+
+rain_bank_mass$Big_small <- ifelse(rain_bank_mass$Mean_1_Seed_Mass_g > 0.00075, 1, 0)
+rain_bank_mass$Big_small <- as.factor(rain_bank_mass$Big_small )
+
+
+rain_bank_mass_lumped <- rain_bank_mass %>% 
+  group_by(Site, SPP6, Mean_1_Seed_Mass_g, Transect, Big_small) %>%
+summarize(tot.seedlings = sum(Number_Seedlings), tot.seeds = sum(Number_Seeds))
+```
+
+
+```{r}
+
+lm.mod.site.rain_bank <- lm(log10(tot.seedlings+1) ~ log10(1+tot.seeds)+Big_small+Site, data = rain_bank_mass_lumped)
+
+AIC(lm.mod.site.rain_bank )
+anova(lm.mod.site.rain_bank )
+summary(lm.mod.site.rain_bank )
+
+```
+
+
+```{r}
+ggplot(data = rain_bank_mass_lumped, aes(x = 1+tot.seeds, y =1+tot.seedlings, color = Big_small, shape = Site))+
+  geom_point()+
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10') +
+  geom_smooth(method="lm", aes(group = Big_small)) +
+  theme_classic()+
+  labs(x = "Seed input [log 10 + 1]", y = "Germinable seed bank")+
+  scale_color_discrete(name = "Seed Size",
+                       breaks = c("0", "1"),
+                       labels = c("Small", "Large"))+
+theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))+
+scale_shape_discrete(name = "Site",
+                       breaks = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"),
+                       labels = c("Young", "Middle", "Old", "Remnant"))
+  
+```
+
+#### NEW
+
+
+
+### --- Cover vs. Seed bank
+
+
+
+
+```{r}
+cover_bank_mass <- left_join(cover_bank, traits) %>% 
+  filter(Mean_1_Seed_Mass_g > 0)
+
+# median seed mass
+
+median(cover_bank_mass$Mean_1_Seed_Mass_g)
+
+# 0.001 (lets say you are small if you are less than 0.001 g and big if you are greater than 0.001 g)
+
+
+cover_bank_mass$Big_small <- ifelse(cover_bank_mass$Mean_1_Seed_Mass_g > 0.00075, 1, 0)
+cover_bank_mass$Big_small <- as.factor(cover_bank_mass$Big_small )
+
+
+cover_bank_mass_lumped <- cover_bank_mass %>% 
+  group_by(Site, SPP6, Mean_1_Seed_Mass_g, Big_small) %>%
+summarize(tot.seedlings = sum(Number_Seedlings), tot.cover = sum(Cover))
+```
+
+
+```{r}
+
+lm.mod.site.cover_bank <- lm(log10(tot.seedlings+1) ~ log10(1+tot.cover)+Big_small+Site, data = cover_bank_mass_lumped)
+
+AIC(lm.mod.site.cover_bank)
+anova(lm.mod.site.cover_bank)
+summary(lm.mod.site.cover_bank)
+
+```
+
+
+```{r}
+ggplot(data = cover_bank_mass_lumped, aes(x = 1+tot.cover, y = 1+tot.seedlings, color = Big_small, shape = Site))+
+  scale_x_continuous(trans='log10') +
+  scale_y_continuous(trans='log10') +
+  geom_point()+
+  geom_smooth(method="lm", aes(group = Big_small)) +
+  theme_classic()+
+  labs(x = "Local aboveground cover [log 10 + 1]", y = "Germinable seed bank")+
+  scale_color_discrete(name = "Seed Size",
+                       breaks = c("0", "1"),
+                       labels = c("Small", "Large"))+
+theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))+
+scale_shape_discrete(name = "Site",
+                       breaks = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"),
+                       labels = c("Young", "Middle", "Old", "Remnant"))
+
+```
