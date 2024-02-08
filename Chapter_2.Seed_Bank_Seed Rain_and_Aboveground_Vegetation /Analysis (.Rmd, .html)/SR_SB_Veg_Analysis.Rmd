@@ -1134,7 +1134,9 @@ TukeyHSD(Cover_rain.aov.jac)
 
 ```{r}
 
-
+# Contrasts
+standardize <- emmeans::emmeans(Cover_rain.mod.bray, "Site")
+emmeans::contrast(standardize, "trt.vs.ctrl")
 
 ## 95% confidence intervals 
 
@@ -1152,6 +1154,8 @@ Cover_rain_dissimilarity <- data.frame(site, response, lower, upper)
 
 ```
 
+
+
 ```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
  
 # scatterplot with 95% confidence intervals (based on model estimates!)
@@ -1160,32 +1164,41 @@ Cover_rain_dissimilarity <- data.frame(site, response, lower, upper)
 Cover_rain_dis_results$Site <- factor(Cover_rain_dis_results$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
 
 bray_curtis_cover_rain.plot <- ggplot()+
-  geom_jitter(data=Cover_rain_dis_results, aes(x = Site, y = dissimilarity_bray, color = Site), show.legend = FALSE, width = .2, size =2) +
+  geom_jitter(data=Cover_rain_dis_results, aes(x = Site, y = dissimilarity_bray, color = Site), show.legend = FALSE, width = .2, size =2.5) +
   geom_point(data = Cover_rain_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
-  geom_errorbar(data = Cover_rain_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = .75)+
+  geom_errorbar(data = Cover_rain_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1)+
   theme_classic()+
-  labs(x = "", y = "Bray-Curtis Dissimilarity", title = "Aboveground - Seed Rain")+
+  labs(x = "", y = "Bray-Curtis Dissimilarity")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
- theme(text=element_text(size=18), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
-  ylim(.2,1)
-  scale_y_continuous(breaks=seq(0,1,by=.2))
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
+scale_y_continuous(breaks = seq(0.2, 1, by = .2), limits = c(.2, 1.075))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
 
 bray_curtis_cover_rain.plot
 
 
 
-bray_curtis_cover_rain.plot <- bray_curtis_cover_rain.plot + draw_image(
-  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_seed.png",
-  x = .6, y = .5, width = .25
-)
+bray_curtis_cover_rain.plot  <- bray_curtis_cover_rain.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .5, y = .55, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/SPHOBT_Sil.png",
+  x = 1.23, y = .55, width = .6) + 
+  annotate("text", x = 1.24, y = 1.03, label = "Vs.", size = 4)+ 
+  annotate("text", x = 1 , y = .7, label = "*", size = 9.5)
 
 ```
+
 
 #### Fig. - Jaccard dissimilarity figure
 
 ```{r}
 ## 95% confidence intervals 
+
+# Contrasts
+standardize <- emmeans::emmeans(Cover_rain.mod.jac, "Site")
+emmeans::contrast(standardize, "trt.vs.ctrl")
 
 emmeans::emmeans(Cover_rain.mod.jac, "Site", type = "response")
 
@@ -1208,16 +1221,27 @@ Cover_rain_jac_dissimilarity <- data.frame(site, response, lower, upper)
 jaccard_cover_rain.plot <- ggplot()+
   geom_jitter(data=Cover_rain_dis_results, aes(x = Site, y = dissimilarity_jaccard, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
   geom_point(data = Cover_rain_jac_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
-  geom_errorbar(data = Cover_rain_jac_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 0.75)+
+  geom_errorbar(data = Cover_rain_jac_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1)+
   theme_classic()+
   labs(x = "", y = "Jaccard Dissimilarity", title = "")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
-  ylim(.2,1)
-  scale_y_continuous(breaks=seq(0,1,by=.15))
+scale_y_continuous(breaks = seq(0.2, 1, by = .2), limits = c(.2, 1.075))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
 
 jaccard_cover_rain.plot
+
+
+jaccard_cover_rain.plot <- jaccard_cover_rain.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .5, y = .55, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/SPHOBT_Sil.png",
+  x = 1.23, y = .55, width = .6) + 
+  annotate("text", x = 1.24, y = 1.03, label = "Vs.", size = 4)+ 
+  annotate("text", x = 1 , y = .83, label = ".", size = 16)+ 
+  annotate("text", x = 2 , y = .78, label = "*", size = 9.5)
 
 ```
 
@@ -1918,6 +1942,11 @@ TukeyHSD(Cover_bank.mod.jac)
 ### Fig. - Bray-Curtis dissimilarity
 
 ```{r}
+
+# Contrasts
+standardize <- emmeans::emmeans(Cover_bank.mod.bray, "Site")
+emmeans::contrast(standardize, "trt.vs.ctrl")
+
 ## 95% confidence intervals 
 
 emmeans::emmeans(Cover_bank.mod.bray, "Site", type = "response")
@@ -1933,6 +1962,7 @@ site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
 Cover_bank_dissimilarity <- data.frame(site, response, lower, upper)
 
 ```
+
 
 ```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
  
@@ -1951,13 +1981,26 @@ bray_curtis_cover_bank.plot <- ggplot()+
   geom_point(data = Cover_bank_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
   geom_errorbar(data = Cover_bank_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1)+
   theme_classic()+
-  labs(x = "", y = "", title = "Aboveground - Seed bank")+
-  ylim(-13, 110)+
+  labs(x = "", y = "",)+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
-  ylim(.2,1)
-  scale_y_continuous(breaks=seq(0,1,by=.2))
+scale_y_continuous(breaks = seq(0.2, 1, by = .2), limits = c(.2, 1.075))+
+  geom_vline(xintercept = 3.5, linetype = "longdash")
+
+bray_curtis_cover_bank.plot
+
+
+
+bray_curtis_cover_bank.plot <- bray_curtis_cover_bank.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .5, y = .55, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = 1.15, y = .55, width = .75) + 
+  annotate("text", x = 1.24, y = 1.03, label = "Vs.", size = 4)+ 
+  annotate("text", x = 1 , y = .8, label = "*", size = 9.5)
+
 
 bray_curtis_cover_bank.plot
 
@@ -1967,6 +2010,9 @@ bray_curtis_cover_bank.plot
 
 ```{r}
 ## 95% confidence intervals 
+
+standardize <- emmeans::emmeans(Cover_bank.mod.jac, "Site")
+emmeans::contrast(standardize, "trt.vs.ctrl")
 
 emmeans::emmeans(Cover_bank.mod.jac, "Site", type = "response")
 
@@ -1995,12 +2041,22 @@ jaccard_cover_bank.plot <- ggplot()+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
-  ylim(.2,1)
-  scale_y_continuous(breaks=seq(0,1,by=.15))
+scale_y_continuous(breaks = seq(0.2, 1, by = .2), limits = c(.2, 1.075))+  
+  geom_vline(xintercept = 3.5, linetype = "longdash")
 
 jaccard_cover_bank.plot
 
+
+jaccard_cover_bank.plot <- jaccard_cover_bank.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .5, y = .55, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = 1.15, y = .55, width = .75)  + 
+  annotate("text", x = 4 , y = 1.05, label = "n.s.", size = 5)
+
 ```
+
 
 ### Immigrants
 
@@ -2623,6 +2679,11 @@ TukeyHSD(Rain_bank.aov.jac)
 ```{r}
 ## 95% confidence intervals 
 
+# Contrasts
+standardize <- emmeans::emmeans(Rain_bank.mod.bray, "Site")
+emmeans::contrast(standardize, "trt.vs.ctrl")
+
+
 emmeans::emmeans(Rain_bank.mod.bray, "Site", type = "response")
 
 ## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
@@ -2651,14 +2712,24 @@ bray_curtis_rain_bank.plot <- ggplot()+
   geom_point(data = Rain_bank_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
   geom_errorbar(data = Rain_bank_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1)+
   theme_classic()+
-  labs(x = "", y = "", title = "Seed Rain - Seed bank")+
+  labs(x = "", y = "")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
-  ylim(.2,1)
-  scale_y_continuous(breaks=seq(0,1,by=.2))
+scale_y_continuous(breaks = seq(0.2, 1, by = .2), limits = c(.2, 1.075))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
 
 bray_curtis_rain_bank.plot
+
+
+bray_curtis_rain_bank.plot <- bray_curtis_rain_bank.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/SPHOBT_Sil.png",
+  x = .5, y = .55, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = 1.15, y = .55, width = .75) + 
+  annotate("text", x = 1.24, y = 1.03, label = "Vs.", size = 4)+
+  annotate("text", x = 1 , y = .95, label = ".", size = 16)
 
 ```
 
@@ -2666,6 +2737,10 @@ bray_curtis_rain_bank.plot
 
 ```{r}
 ## 95% confidence intervals 
+
+# Contrasts
+standardize <- emmeans::emmeans(Rain_bank.mod.jac, "Site")
+emmeans::contrast(standardize, "trt.vs.ctrl")
 
 emmeans::emmeans(Rain_bank.mod.jac, "Site", type = "response")
 
@@ -2694,12 +2769,21 @@ jaccard_rain_bank.plot <- ggplot()+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
-  ylim(.2,1)
-  scale_y_continuous(breaks=seq(0,1,by=.15))
+scale_y_continuous(breaks = seq(0.2, 1, by = .2), limits = c(.2, 1.075))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
 
-jaccard_rain_bank.plot
+jaccard_rain_bank.plot <- jaccard_rain_bank.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/SPHOBT_Sil.png",
+  x = .5, y = .55, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = 1.15, y = .55, width = .75) +
+  annotate("text", x = 4 , y = 1.05, label = "n.s.", size = 5)
+
+
 
 ```
+
 
 ### Immigrants
 
@@ -3205,19 +3289,33 @@ labs_bray_pcoa_df <- data.frame(everything_mat_labs, bray_pcoa_df)
 
 labs_bray_pcoa_df_centroid <- labs_bray_pcoa_df %>% 
   group_by(Site, Type) %>% 
-  summarize(centroid.1 = mean(pcoa1), centroid.2 = mean(pcoa2))
+  summarise(mean.centroid.1 = mean(pcoa1, na.rm = TRUE),
+            mean.centroid.2 = mean(pcoa2, na.rm = TRUE),
+            sd.latitude.1 = sd(pcoa1, na.rm = TRUE),
+            sd.longitude.2 = sd(pcoa2, na.rm = TRUE),
+            n.centroid = n()) %>%
+  mutate(se.latitude.1 = sd.latitude.1  / sqrt(n.centroid),
+         se.longitude.2 = sd.longitude.2  / sqrt(n.centroid),
+         
+         lower.ci.lat.1 = mean.centroid.1 - qt(1 - (0.05 / 2), n.centroid - 1) * se.latitude.1,
+         upper.ci.lat.1 =  mean.centroid.1 + qt(1 - (0.05 / 2), n.centroid - 1) * se.latitude.1,
+         
+         lower.ci.lon.2 = mean.centroid.2 - qt(1 - (0.05 / 2), n.centroid - 1) * se.longitude.2,
+         upper.ci.lon.2 =  mean.centroid.2 + qt(1 - (0.05 / 2), n.centroid - 1) * se.longitude.2)
 
 ```
 
 
-```{r, fig.width = 4, fig.height = 4}
+```{r, fig.width = 8, fig.height = 6}
+
 # Creates the plot
 bray_plot <- ggplot(data = labs_bray_pcoa_df, aes(x=pcoa1, y=pcoa2, color = Site, shape = Type)) +
   geom_point(alpha = .7, cex = 2) +
-  geom_point(data = labs_bray_pcoa_df_centroid , aes(x = centroid.1, y = centroid.2), cex = 4)+
-  labs(x = "PC1",
-       y = "PC2",
-       title = "Bray-curtis PCoA with Hellinger transformation") +
+  geom_point(data = labs_bray_pcoa_df_centroid , aes(x = mean.centroid.1, y = mean.centroid.2), cex = 4)+
+  geom_errorbar(data = labs_bray_pcoa_df_centroid, aes(x = mean.centroid.1, y = mean.centroid.2, xmin = lower.ci.lat.1, xmax =   upper.ci.lat.1))+
+  geom_errorbar(data = labs_bray_pcoa_df_centroid, aes(x = mean.centroid.1, y = mean.centroid.2, ymin = lower.ci.lon.2, ymax = upper.ci.lon.2))+
+  labs(x = "PCoA1 (16%)",
+       y = "PCoA2 (9%)") +
    scale_shape_manual(name = "Type", breaks = c("Aboveground", "Seed_Bank", "Seed_Rain"),
                          labels = c("Aboveground", "Seed Bank", "Seed Rain"),
                          values = c(16, 17, 15))+
@@ -3225,12 +3323,19 @@ bray_plot <- ggplot(data = labs_bray_pcoa_df, aes(x=pcoa1, y=pcoa2, color = Site
                          labels = c("Young", "Middle", "Old", "Remnant"),
                          values = c("#E69F00", "#009E73", "#56B4E9", "#0072B2"))+
   theme(title = element_text(size = 12)) +
-theme_classic()
+theme_classic()+ 
+  theme(legend.position = "right") +
+  theme(text=element_text(size=16), legend.key.size=unit(0.5, "cm"), plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(breaks = seq(-0.8, .4, by = .2), limits = c(-0.5, .4))+ 
+  scale_x_continuous(breaks = seq(-0.8, .4, by = .2), limits = c(-0.6, .6))
 
 bray_plot
 
-test <- adonis2(everything_mat_hell_bray ~ Site*Type, method= "bray", data = everything_mat_labs)
-summary(test)
+```
+
+```{r}
+Permanova.everything <- adonis2(everything_mat_hell_bray ~ Site*Type, method= "bray", data = everything_mat_labs)
+Permanova.everything 
 
 library(pairwiseAdonis)
 
@@ -3244,7 +3349,7 @@ pairwise.adonis2(everything_mat_hell_bray  ~ Site*Type, method= "bray", data = e
 
 
 
-```{r, fig.width = 4, fig.height = 4}
+```{r, fig.width = 6, fig.height = 6}
 library(ecotraj)
 
 D = everything_mat_hell_bray
@@ -3278,11 +3383,11 @@ Remnant <- rep("#0072B2", 10)
 
 
 
-trajectoryPCoA(D, sites,  traj.colors=c(Young, Middle, Old, Remnant), surveys, lwd = 2,
-               survey.labels = T)
-legend(-1.1, .5, col=c("#E69F00", "#009E73", "#56B4E9","#0072B2"), 
-       legend=c("Young", "Middle", "Old", "Remnant"), bty="n", lty=1, lwd = 2)
+traj.plot<- trajectoryPCoA(D, sites,  traj.colors=c(Young, Middle, Old, Remnant), surveys, lwd = 2,
+               survey.labels = F)
 
+trajectoryPCoA(D, sites,  traj.colors=c(Young, Middle, Old, Remnant), surveys, lwd = 2,
+               survey.labels = F)
 ```
 
 
@@ -3465,22 +3570,28 @@ ggtern(data=tern.plot.data_PFCA_3,aes(x=Aboveground,y=Seed_Bank, z=Seed_Rain))+
 
 
 ```{r, fig.width = 12, fig.height = 4}
-# Dissimiliarity 
+# Dissimilarity 
 
-plot_grid(bray_curtis_cover_rain.plot,bray_curtis_rain_bank.plot, bray_curtis_cover_bank.plot, ncol = 3)
+plot_grid(bray_curtis_cover_rain.plot,bray_curtis_rain_bank.plot, bray_curtis_cover_bank.plot, ncol = 3, labels = c("A)", "B)", "C)"), label_size = 18, align = 'h')
 
-# Sig differences for all except for SB-Veg Jaccard
-## Still need to do pairwise differences (contrasts? Tukey HSD?)
 
+plot_grid(jaccard_cover_rain.plot, jaccard_rain_bank.plot, jaccard_cover_bank.plot, ncol = 3, labels = c("A)", "B)", "C)"), label_size = 18, align = 'h')
+
+```
+
+
+```{r, fig.width = 8, fig.height = 12}
+
+plot_grid(bray_plot, traj.plot, ncol = 1, labels = c("A)", "B)"), label_size = 18, align = 'v')
 
 ```
 
 
 ```{r, fig.width = 12, fig.height = 4}
-plot_grid(prop_immigrant_seeds_cover_rain.plot,  prop_immigrant_seedlings_rain_bank.plot,prop_immigrant_seedlings_cover_bank.plot, ncol = 3)
+plot_grid(prop_immigrant_seeds_cover_rain.plot,  prop_immigrant_seedlings_rain_bank.plot,prop_immigrant_seedlings_cover_bank.plot, ncol = 3, labels = c("A)", "B)", "C)"),
+  label_size = 18, align = 'h')
+
 ```
-
-
 
 
 
