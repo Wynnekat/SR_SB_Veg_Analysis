@@ -131,6 +131,7 @@ library(MuMIn)
 library(performance)
 library(see)
 library(patchwork)
+library(emmeans)
 ```
 
 
@@ -346,6 +347,8 @@ seed_bank_sum <- filter(seed_bank_sum, !grepl('UNK', SPP6))
 # Looks good
 list(sort(unique(seed_bank_sum$SPP6)))
 ```
+
+
 ### -----
 
 ## Merge Spring and Fall cover
@@ -1035,7 +1038,7 @@ for(s in 1:length(sites)){
         plot_cast<-dcast(temp_t[,-c(1:2)],Type ~ SPP6, value.var="Abundance", fun.aggregate=mean,fill=0)
         
         #relative abundances
-        trans_tot <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"tot"))
+        trans_tot <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"hellinger"))
         names(trans_tot)[1]<-"trt"
         
         trans_pa <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"pa"))
@@ -1144,9 +1147,9 @@ emmeans::emmeans(Cover_rain.mod.bray, "Site", type = "response")
 
 ## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
 
-response <- c(0.469, 0.631, 0.688, 0.681)
-lower <- c(0.395, 0.557,  0.614, 0.603) 
-upper <- c(0.542, 0.704, 0.761,  0.758)
+response <- c(0.380, 0.443, 0.537, 0.514)
+lower <- c(0.342, 0.405,  0.499, 0.474) 
+upper <- c(0.418, 0.481, 0.575,  0.554)
 site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
 
 
@@ -1186,7 +1189,8 @@ bray_curtis_cover_rain.plot  <- bray_curtis_cover_rain.plot + draw_image(
   "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/SPHOBT_Sil.png",
   x = 1.23, y = .55, width = .6) + 
   annotate("text", x = 1.24, y = 1.03, label = "Vs.", size = 4)+ 
-  annotate("text", x = 1 , y = .7, label = "*", size = 9.5)
+  annotate("text", x = 1 , y = .58, label = "*", size = 9.5)+ 
+  annotate("text", x = 2 , y = .58, label = "*", size = 9.5)
 
 ```
 
@@ -1240,7 +1244,6 @@ jaccard_cover_rain.plot <- jaccard_cover_rain.plot + draw_image(
   "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/SPHOBT_Sil.png",
   x = 1.23, y = .55, width = .6) + 
   annotate("text", x = 1.24, y = 1.03, label = "Vs.", size = 4)+ 
-  annotate("text", x = 1 , y = .83, label = ".", size = 16)+ 
   annotate("text", x = 2 , y = .78, label = "*", size = 9.5)
 
 ```
@@ -1330,7 +1333,9 @@ Species_counts_cover_rain$Tot_Aboveground <- Species_counts_cover_rain$New_Above
 
 ## Immigrants
 
-Species_counts_cover_rain$Prop_Immigrant <- Species_counts_cover_rain$New_Rain / Species_counts_cover_rain$Tot_Aboveground
+### What proportion of species dispersing in the seed rain are not found in the local cover?
+
+Species_counts_cover_rain$Prop_Immigrant <- Species_counts_cover_rain$New_Rain / Species_counts_cover_rain$Tot_Rain
 ```
 
 
@@ -1340,31 +1345,76 @@ favstats(Species_counts_cover_rain$Prop_Immigrant~Species_counts_cover_rain$Site
 # No difference in proportion of immigrant species
 ## *Note* better modeled as a binomial regression?
 
-Species_counts_cover_rain.mod <- lm(Prop_Immigrant~Site, data =Species_counts_cover_rain)
-summary(Species_counts_cover_rain.mod)
-Anova(Species_counts_cover_rain.mod, type = "III")
+
+# Species_counts_cover_rain.binom.mod <- glm(cbind(New_Rain, Tot_Rain) ~ Site, family = binomial, data =Species_counts_cover_rain)
+# summary(Species_counts_cover_rain.binom.mod )
+# Anova(Species_counts_cover_rain.binom.mod , type = "III")
+
+Species_counts_cover_rain$Site <- factor(Species_counts_cover_rain$Site, levels=c("TP", "PFCA 2", "PFCA 3", "PFCA 1"))
+
+Species_counts_cover_rain.lin.mod <- lm( Prop_Immigrant~ Site, data =Species_counts_cover_rain)
+summary(Species_counts_cover_rain.lin.mod)
+Anova(Species_counts_cover_rain.lin.mod, type = "III")
+
+```
+
+```{r}
+
+
+
+
+# Contrasts
+standardize <- emmeans::emmeans(Species_counts_cover_rain.lin.mod, "Site")
+ emmeans::contrast(standardize, "trt.vs.ctrl")
+
+## 95% confidence intervals 
+
+emmeans::emmeans(Species_counts_cover_rain.lin.mod, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.325,  0.283, 0.337, 0.322)
+lower <- c(0.276, 0.234,  0.289, 0.270) 
+upper <- c( 0.374,  0.331, 0.386,  0.373)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Immigration_cover_rain <- data.frame(site, response, lower, upper)
 
 
 ```
 
-
-
 ```{r}
+
+#Re-order the levels
+Species_counts_cover_rain$Site <- factor(Species_counts_cover_rain$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+
+
 prop_new_species_cover_rain.plot <- ggplot()+
   geom_jitter(data=Species_counts_cover_rain, aes(x = Site, y = Prop_Immigrant, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Immigration_cover_rain, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Immigration_cover_rain, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1)+
   theme_classic()+
-  labs(x = "", y = "Prop. of new species in seed rain")+
+  labs(x = "", y = "Prop. new species in seed rain")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
-  ylim(-0.05,.75)
+scale_y_continuous(breaks = seq(0, 1, by = .2), limits = c(0, 1.075))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
 
 
-prop_new_species_cover_rain.plot
+prop_new_species_cover_rain.plot <- prop_new_species_cover_rain.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .5, y = .5, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/SPHOBT_Sil.png",
+  x = 1.23, y = .5, width = .6) + 
+  annotate("text", x = 1.24, y = .97, label = "Vs.", size = 4)+ 
+  annotate("text", x = 4 , y = .97, label = "n.s.", size = 4.5)
+
+prop_new_species_cover_rain.plot 
 
 ```
-
-
 
 
 #### Proportion of seeds in the seed rain not seen in local cover
@@ -1395,60 +1445,79 @@ Prop_Immigrant_Seeds$Total_Seeds <- Prop_Immigrant_Seeds$Shared_Seeds + Prop_Imm
 Prop_Immigrant_Seeds$Prop <-  Prop_Immigrant_Seeds$Immigrant_Seeds / Prop_Immigrant_Seeds$Total_Seeds
 ```
 
+
 ```{r}
 
+Prop_Immigrant_Seeds$Site <- factor(Prop_Immigrant_Seeds$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+
+# Prop_immigrant_cover_rain.binom.mod <- glm(cbind(Immigrant_Seeds, Total_Seeds) ~ Site, family = binomial, data =Prop_Immigrant_Seeds)
+# summary(Prop_immigrant_cover_rain.binom.mod)
+# Anova(Prop_immigrant_cover_rain.binom.mod, type = "III")
+
+Prop_immigrant_cover_rain.lm.mod <- lm(Prop ~ Site, data = Prop_Immigrant_Seeds)
+summary(Prop_immigrant_cover_rain.lm.mod)
+Anova(Prop_immigrant_cover_rain.lm.mod, type = "3")
+
+```
+
+```{r}
+# Contrasts
+ standardize <- emmeans::emmeans(Prop_immigrant_cover_rain.lm.mod, "Site")
+ emmeans::contrast(standardize, "trt.vs.ctrl")
+
+## 95% confidence intervals 
+
+emmeans::emmeans(Prop_immigrant_cover_rain.lm.mod, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.0137, 0.0306, 0.0367, 0.0793)
+lower <- c(-0.022403,  -0.005471, 0.000645, 0.041231) 
+upper <- c(0.0498,  0.0667, 0.0728,  0.1173)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Prop_Immigration_cover_rain <- data.frame(site, response, lower, upper)
+
+
+```
+
+
+
+```{r}
+#Re-order the levels
+Prop_Immigrant_Seeds$Site <- factor(Prop_Immigrant_Seeds$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
 
 
 prop_immigrant_seeds_cover_rain.plot <- ggplot()+
   geom_jitter(data=Prop_Immigrant_Seeds, aes(x = Site, y = Prop, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
   theme_classic()+
-  labs(x = "", y = "Prop. of new seeds in seed rain", title = "Aboveground - Seed Rain")+
+  geom_point(data = Prop_Immigration_cover_rain, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Prop_Immigration_cover_rain, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1)+
+  labs(x = "", y = "Prop. new seeds in seed rain", title = "")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
-  ylim(-0.05,.5)
+scale_y_continuous(breaks = seq(0, 1, by = .2), limits = c(-0.025, 1.075))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
 
 
 # The two "outlier" points are because we caught a lot of Solidago altissima and Barbarea vulgaris at these points but they weren't in the immediate cover. 
 
+prop_immigrant_seeds_cover_rain.plot <- prop_immigrant_seeds_cover_rain.plot +
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .5, y = .5, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/SPHOBT_Sil.png",
+  x = 1.23, y = .5, width = .6)+
+  annotate("text", x = 1.24, y = .97, label = "Vs.", size = 4) +
+  annotate("text", x = 1 , y = .1, label = "*", size = 9.5)
+
 prop_immigrant_seeds_cover_rain.plot
-
 ```
 
-
-```{r}
-immigrant_resident_mass <- cover_rain_dis_long_unique %>% 
-  filter(Seed_Rain == 1 & Aboveground == 0)
-
-immigrant_resident_mass_shared <- cover_rain_dis_long_unique %>% 
-  filter(Seed_Rain == 1 & Aboveground == 1)
-
-immigrant_resident_mass <- full_join(immigrant_resident_mass, immigrant_resident_mass_shared)
-
-immigrant_resident_mass <- left_join(immigrant_resident_mass , traits)
-```
-
-```{r}
-ggplot(aes(x = as.factor(shared), y = Mean_1_Seed_Mass_g*1000), data = immigrant_resident_mass)+
-  geom_boxplot()  +
-  scale_y_continuous(trans='log10') +
-  theme_classic()+
-  labs(x = "", y = "Seed mass (mg) [log 10]")+
-  scale_x_discrete(labels = c("Immigrant", "Resident"), breaks = c("1", "2"))+
-theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))
-
-test_mod <- lm(log10(Mean_1_Seed_Mass_g*1000) ~ as.factor(shared), data = immigrant_resident_mass)
-anova(test_mod)
-
-ggplot(aes(x = as.factor(shared), y = Mean_1_Seed_Mass_g*1000), data = immigrant_resident_mass)+
-  geom_boxplot()  +
-  scale_y_continuous(trans='log10') +
-  theme_classic()+
-  labs(x = "", y = "Seed mass (mg) [log 10]")+
-  scale_x_discrete(labels = c("Immigrant", "Resident"), breaks = c("1", "2"))+
-theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))
-
-```
 
 ### Cover vs. Seed Rain - Species-level and traits
 
@@ -1459,21 +1528,21 @@ theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))
 ```{r}
 #cover_rain$Site <- factor(cover_rain$Site, levels = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))
 
-site.labs <- c("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant")
-
-
-ggplot(cover_rain, aes(x = Cover+1, y = Number_Seeds+1))+
-  geom_point()+
-  scale_x_continuous(trans='log10') +
-  scale_y_continuous(trans='log10') +
-  facet_grid(cols = vars(Site),  labeller = labeller(Site = site.labs))+
-  geom_smooth(method = "lm") +
-  labs(x = "Veg. Cover [Log 10 + 1])", y = "No. Seeds [Log 10 + 1]")+
-  theme(axis.text = element_text( size = 12),
-        axis.text.x = element_text( size = 12),
-        axis.title = element_text( size = 16),
-        legend.position = "none",
-        strip.text = element_text(size = 16))
+# site.labs <- c("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant")
+# 
+# 
+# ggplot(cover_rain, aes(x = Cover+1, y = Number_Seeds+1))+
+#   geom_point()+
+#   scale_x_continuous(trans='log10') +
+#   scale_y_continuous(trans='log10') +
+#   facet_grid(cols = vars(Site),  labeller = labeller(Site = site.labs))+
+#   geom_smooth(method = "lm") +
+#   labs(x = "Veg. Cover [Log 10 + 1])", y = "No. Seeds [Log 10 + 1]")+
+#   theme(axis.text = element_text( size = 12),
+#         axis.text.x = element_text( size = 12),
+#         axis.title = element_text( size = 16),
+#         legend.position = "none",
+#         strip.text = element_text(size = 16))
 ```
 
 
@@ -1876,7 +1945,7 @@ for(s in 1:length(sites)){
         plot_cast<-dcast(temp_t[,-c(1:2)],Type ~ SPP6, value.var="Abundance", fun.aggregate=mean,fill=0)
         
         #relative abundances
-        trans_tot <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"tot"))
+        trans_tot <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"hellinger"))
         names(trans_tot)[1]<-"trt"
         
         trans_pa <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"pa"))
@@ -1953,9 +2022,9 @@ emmeans::emmeans(Cover_bank.mod.bray, "Site", type = "response")
 
 ## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
 
-response <- c(0.558, 0.823, 0.872, 0.827)
-lower <- c(0.498, 0.763,  0.812, 0.763) 
-upper <- c(0.618, 0.883, 0.932,  0.890)
+response <- c(0.573, 0.758, 0.810, 0.766)
+lower <- c(0.529, 0.714,  0.766, 0.719) 
+upper <- c(0.617, 0.802, 0.854,  0.812)
 site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
 
 
@@ -2139,22 +2208,117 @@ Species_counts_cover_bank$Tot_Bank <- Species_counts_cover_bank$New_Bank + Speci
 
 ## Immigrants
 
-Species_counts_cover_bank$Prop_Immigrant <- Species_counts_cover_bank$New_Bank / Species_counts_cover_bank$Tot_Cover
+Species_counts_cover_bank$Prop_Immigrant <- Species_counts_cover_bank$New_Bank / Species_counts_cover_bank$Tot_Bank
+```
+
+
+```{r}
+
+# No difference in proportion of immigrant species
+## *Note* better modeled as a binomial regression?
+## binomial regression produces results that don't work with the actual observed data. Linear model works just as well with more appropriate mean and CI results.
+
+
+#Re-order the levels
+Species_counts_cover_bank$Site <- factor(Species_counts_cover_bank$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+
+
+Species_counts_cover_bank.lin.mod <- lm( Prop_Immigrant~ Site, data = Species_counts_cover_bank)
+summary(Species_counts_cover_bank.lin.mod)
+Anova(Species_counts_cover_bank.lin.mod, type = "III")
+
+```
+
+```{r}
+
+
+# Contrasts
+standardize <- emmeans::emmeans(Species_counts_cover_bank.lin.mod, "Site")
+ emmeans::contrast(standardize, "trt.vs.ctrl")
+
+## 95% confidence intervals 
+
+emmeans::emmeans(Species_counts_cover_bank.lin.mod, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.340,  0.410, 0.572, 0.466)
+lower <- c(0.256, 0.326,  0.488 , 0.377) 
+upper <- c( 0.424,  0.494,  0.657,  0.555)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Immigration_cover_bank <- data.frame(site, response, lower, upper)
+
+
 ```
 
 ```{r}
 ### the oldest restoration has the greatest proportion of immigrants -> likely caused by a persistent seed bank formed from when this site was farmed prior to restoration. Weedy non-native species likely were displaced from the aboveground vegetation but remained present in the seed bank. This trend is not seen in Tucker Prairie which doesn't have the same past. 
 
+Species_counts_cover_bank$Site <- factor(Species_counts_cover_bank$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+
 prop_new_species_cover_bank.plot <- ggplot() +
   geom_jitter(data = Species_counts_cover_bank, aes(x = Site, y = Prop_Immigrant, color = Site), show.legend = FALSE, width = 0.2, size = 2.5) +
+  geom_point(data = Immigration_cover_bank , aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Immigration_cover_bank , aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1) +
   theme_classic()+
-  labs(x = "", y = "Prop. of new species in seed bank")+
+  labs(x = "", y = "Prop. new species in seed bank")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
-  ylim(-0.05,1)
+scale_y_continuous(breaks = seq(0, 1, by = .2), limits = c(0, 1.075))+
+  geom_vline(xintercept = 3.5, linetype = "longdash")
+
+prop_new_species_cover_bank.plot <- prop_new_species_cover_bank.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .5, y = .5, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = 1.15, y = .5, width = .75) + 
+  annotate("text", x = 1.24, y = .97, label = "Vs.", size = 4)+ 
+  annotate("text", x = 4 , y = .97, label = "n.s.", size = 4.5)
 
 prop_new_species_cover_bank.plot
+```
+
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+#Re-order the levels
+cover_bank_dis_results$Site <- factor(cover_bank_dis_results$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+
+
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+
+bray_curtis_cover_bank.plot <- ggplot()+
+  geom_jitter(data=cover_bank_dis_results, aes(x = Site, y = dissimilarity_bray, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Cover_bank_dissimilarity, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Cover_bank_dissimilarity, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1)+
+  theme_classic()+
+  labs(x = "", y = "",)+
+  scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
+scale_y_continuous(breaks = seq(0.2, 1, by = .2), limits = c(.2, 1.075))+
+  geom_vline(xintercept = 3.5, linetype = "longdash")
+
+bray_curtis_cover_bank.plot
+
+
+
+bray_curtis_cover_bank.plot <- bray_curtis_cover_bank.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .5, y = .55, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = 1.15, y = .55, width = .75) + 
+  annotate("text", x = 1.24, y = 1.03, label = "Vs.", size = 4)+ 
+  annotate("text", x = 1 , y = .8, label = "*", size = 9.5)
+
+
+bray_curtis_cover_bank.plot
 
 ```
 
@@ -2186,25 +2350,81 @@ Prop_Immigrant_Seedlings$Total_Seedlings <- Prop_Immigrant_Seedlings$Shared_Seed
 Prop_Immigrant_Seedlings$Prop <-  Prop_Immigrant_Seedlings$Immigrant_Seedlings / Prop_Immigrant_Seedlings$Total_Seedlings
 ```
 
+
 ```{r}
 
+# No difference in proportion of immigrant species
+## *Note* better modeled as a binomial regression?
+## binomial regression produces results that don't work with the actual observed data. Linear model works just as well with more appropriate mean and CI results.
+
+
+#Re-order the levels
+Prop_Immigrant_Seedlings$Site <- factor(Prop_Immigrant_Seedlings$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+
+
+Prop_Immigrant_Seedlings.lin.mod <- lm(Prop ~ Site, data = Prop_Immigrant_Seedlings)
+summary(Prop_Immigrant_Seedlings.lin.mod)
+Anova(Prop_Immigrant_Seedlings.lin.mod, type = "III")
+
+```
+
+```{r}
+
+# Contrasts
+standardize <- emmeans::emmeans(Prop_Immigrant_Seedlings.lin.mod , "Site")
+ emmeans::contrast(standardize, "trt.vs.ctrl")
+
+## 95% confidence intervals 
+
+emmeans::emmeans(Prop_Immigrant_Seedlings.lin.mod, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.0513,  0.2594, 0.5633, 0.4504)
+lower <- c(-0.0597, 0.1484,  0.4522 , 0.3334) 
+upper <- c( 0.162,  0.370,  0.674,  0.567)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Prop_cover_bank <- data.frame(site, response, lower, upper)
+
+
+```
+
+
+```{r}
+
+#Re-order the levels
+Prop_Immigrant_Seedlings$Site <- factor(Prop_Immigrant_Seedlings$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
 
 
 prop_immigrant_seedlings_cover_bank.plot <- ggplot()+
   geom_jitter(data=Prop_Immigrant_Seedlings, aes(x = Site, y = Prop, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Prop_cover_bank, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Prop_cover_bank, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1) +
   theme_classic()+
-  labs(x = "", y = "Prop. of new seeds in seed bank", title = "Aboveground - Seed Bank")+
+  labs(x = "", y = "Prop. new seeds in seed bank", title = "")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
-  ylim(-0.05,1)
+scale_y_continuous(breaks = seq(0, 1, by = .2), limits = c(-0.06, 1.075))+
+  geom_vline(xintercept = 3.5, linetype = "longdash")
 
 
 
-
-prop_immigrant_seedlings_cover_bank.plot
+prop_immigrant_seedlings_cover_bank.plot <- prop_immigrant_seedlings_cover_bank.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .5, y = .5, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = 1.15, y = .5, width = .75) + 
+  annotate("text", x = 1.24, y = .97, label = "Vs.", size = 4)+ 
+  annotate("text", x = 1 , y = .4, label = "*", size = 9.5)
 
 ```
+
+
 
 #### Cover vs. Seed Bank Figures
 
@@ -2222,20 +2442,20 @@ cover_bank <- cover_bank[!(cover_bank$Site%in%"CONTROL"),]
 ```
 
 ```{r}
-
-ggplot(cover_bank, aes(x = Cover+1, y = Number_Seedlings+1))+
-  geom_point()+
-  scale_x_continuous(trans='log10') +
-  scale_y_continuous(trans='log10') +
-  facet_grid(col=vars(Site), labeller = labeller(Site = site.labs))+
-  geom_smooth(method = "lm") +
-  labs(x = "Veg. cover [Log 10 +1]", y = "No. Seedlings [Log 10 + 1]")+
-  theme(axis.text = element_text( size = 14),
-        axis.text.x = element_text( size = 16),
-        axis.title = element_text( size = 18),
-        legend.position = "none",
-        strip.text = element_text(size = 16))
-
+# 
+# ggplot(cover_bank, aes(x = Cover+1, y = Number_Seedlings+1))+
+#   geom_point()+
+#   scale_x_continuous(trans='log10') +
+#   scale_y_continuous(trans='log10') +
+#   facet_grid(col=vars(Site), labeller = labeller(Site = site.labs))+
+#   geom_smooth(method = "lm") +
+#   labs(x = "Veg. cover [Log 10 +1]", y = "No. Seedlings [Log 10 + 1]")+
+#   theme(axis.text = element_text( size = 14),
+#         axis.text.x = element_text( size = 16),
+#         axis.title = element_text( size = 18),
+#         legend.position = "none",
+#         strip.text = element_text(size = 16))
+# 
 
 ```
 
@@ -2610,7 +2830,7 @@ for(t in 1:length(transects)){
         plot_cast<-dcast(temp_t[,-c(1:2)],Type ~ SPP6, value.var="Abundance", fun.aggregate=mean,fill=0)
         
         #relative abundances
-        trans_tot <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"tot"))
+        trans_tot <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"hellinger"))
         names(trans_tot)[1]<-"trt"
         
         trans_pa <- cbind(plot_cast$Type,decostand(plot_cast[,-1],"pa"))
@@ -2660,18 +2880,7 @@ TukeyHSD(Rain_bank.aov.bray)
 ## PFCA 1 - PFCA 3 0.0171829 *
 ## PFCA 1 - TP 0.0981225 .
 
- 
-# Jaccard
 
-Rain_bank.mod.jac  <- lm(dissimilarity_jaccard ~ Site, data=rain_bank_dis_results)
-summary(Rain_bank.mod.jac)
-Anova(Rain_bank.mod.jac, type = "III") 
-
-
-Rain_bank.aov.jac <- aov(Rain_bank.mod.jac)
-TukeyHSD(Rain_bank.aov.jac)
-
-## PFCA 1 - PFCA 3  0.0327730 *
 ```
 
 ### Fig. - Bray-Curtis dissimilarity
@@ -2688,9 +2897,9 @@ emmeans::emmeans(Rain_bank.mod.bray, "Site", type = "response")
 
 ## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
 
-response <- c(0.551, 0.792, 0.731, 0.688)
-lower <- c(0.469, 0.710,  0.649, 0.606) 
-upper <- c(0.634, 0.874, 0.814,  0.771)
+response <- c(0.501, 0.668, 0.682, 0.614)
+lower <- c(0.452, 0.619,  0.632, 0.565) 
+upper <- c(0.551, 0.718, 0.731,  0.664)
 site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
 
 
@@ -2729,13 +2938,20 @@ bray_curtis_rain_bank.plot <- bray_curtis_rain_bank.plot + draw_image(
   "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
   x = 1.15, y = .55, width = .75) + 
   annotate("text", x = 1.24, y = 1.03, label = "Vs.", size = 4)+
-  annotate("text", x = 1 , y = .95, label = ".", size = 16)
+  annotate("text", x = 1 , y = .8, label = "*", size = 9.5)
 
 ```
 
 ### Fig. - Jaccard dissimilarity figure
 
 ```{r}
+
+
+Rain_bank.mod.jac <- lm(dissimilarity_jaccard ~ Site, data= rain_bank_dis_results)
+summary(Rain_bank.mod.jac)
+Anova(Rain_bank.mod.jac, type = "III")  
+
+
 ## 95% confidence intervals 
 
 # Contrasts
@@ -2866,21 +3082,85 @@ Species_counts_rain_bank$Tot_Bank <- Species_counts_rain_bank$New_Bank + Species
 
 ## Immigrants
 
-Species_counts_rain_bank$Prop_Immigrant <- Species_counts_rain_bank$New_Bank / Species_counts_rain_bank$Tot_Rain
+Species_counts_rain_bank$Prop_Immigrant <- Species_counts_rain_bank$New_Bank / Species_counts_rain_bank$Tot_Bank
 ```
 
+
+```{r, eval=TRUE, echo=FALSE, warning=TRUE, message=FALSE}
+
+#Re-order the levels
+Species_counts_rain_bank$Site <- factor(Species_counts_rain_bank$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+
+# Bray-curtis
+
+
+Species_counts_rain_bank.mod <- lm(Prop_Immigrant ~ Site, data= Species_counts_rain_bank)
+summary(Species_counts_rain_bank.mod )
+Anova(Species_counts_rain_bank.mod , type = "III")  
+
+```
+
+
+
 ```{r}
+## 95% confidence intervals 
+
+# Contrasts
+standardize <- emmeans::emmeans(Species_counts_rain_bank.mod, "Site")
+emmeans::contrast(standardize, "trt.vs.ctrl")
+
+
+emmeans::emmeans(Species_counts_rain_bank.mod, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.217, 0.224, 0.520, 0.289)
+lower <- c(0.137, 0.145,  0.440, 0.209) 
+upper <- c(0.297, 0.304, 0.600,  0.369)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Species_counts_rain_bank_est <- data.frame(site, response, lower, upper)
+
+```
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+#Re-order the levels
+Species_counts_rain_bank$Site <- factor(Species_counts_rain_bank$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+
+
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+
 prop_new_species_rain_bank.plot <- ggplot()+
   geom_jitter(data=Species_counts_rain_bank, aes(x = Site, y = Prop_Immigrant, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Species_counts_rain_bank_est, aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Species_counts_rain_bank_est, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1)+
   theme_classic()+
-  labs(x = "", y = "Prop. of new species in seed bank")+
+  labs(y = "Prop. new species in seed bank", x = "")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
-  ylim(-0.05,1)
+scale_y_continuous(breaks = seq(0, 1, by = .2), limits = c(0, 1.075))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
 
+prop_new_species_rain_bank.plot
+
+
+prop_new_species_rain_bank.plot <- prop_new_species_rain_bank.plot  + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/SPHOBT_Sil.png",
+  x = .5, y = .5, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = 1.15, y = .5, width = .75) + 
+  annotate("text", x = 1.24, y = .97, label = "Vs.", size = 4)+
+  annotate("text", x = 3 , y = .83, label = "*", size = 9.5)
+
+
+prop_new_species_rain_bank.plot
 ```
-
 
 #### Proportion of seedlings in the seed bank not seen in seed rain
 
@@ -2910,18 +3190,71 @@ Prop_Immigrant_Seedlings_Rain$Total_Seedlings <- Prop_Immigrant_Seedlings_Rain$S
 Prop_Immigrant_Seedlings_Rain$Prop <-  Prop_Immigrant_Seedlings_Rain$Immigrant_Seedlings / Prop_Immigrant_Seedlings_Rain$Total_Seedlings
 ```
 
+
+```{r, eval=TRUE, echo=FALSE, warning=TRUE, message=FALSE}
+
+#Re-order the levels
+Prop_Immigrant_Seedlings_Rain$Site <- factor(Prop_Immigrant_Seedlings_Rain$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+
+
+Immigrant_prop_rain_bank.mod <- lm(Prop ~ Site, data= Prop_Immigrant_Seedlings_Rain)
+summary(Immigrant_prop_rain_bank.mod)
+Anova(Immigrant_prop_rain_bank.mod, type = "III")  
+
+```
+
+
+
+```{r}
+## 95% confidence intervals 
+
+# Contrasts
+standardize <- emmeans::emmeans(Immigrant_prop_rain_bank.mod, "Site")
+emmeans::contrast(standardize, "trt.vs.ctrl")
+
+
+emmeans::emmeans(Immigrant_prop_rain_bank.mod, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c(0.0333,  0.0992, 0.4656, 0.2853)
+lower <- c(-0.0844, -0.0185,  0.3479, 0.1676) 
+upper <- c(0.151, 0.217, 0.583,  0.403)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+Immigrant_prop_rain_bank_est <- data.frame(site, response, lower, upper)
+
+```
+
+
 ```{r}
 
-
+#Re-order the levels
+Prop_Immigrant_Seedlings_Rain$Site <- factor(Prop_Immigrant_Seedlings_Rain$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
 
 prop_immigrant_seedlings_rain_bank.plot <- ggplot()+
   geom_jitter(data=Prop_Immigrant_Seedlings_Rain, aes(x = Site, y = Prop, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Immigrant_prop_rain_bank_est , aes(x = site, y = response), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Immigrant_prop_rain_bank_est , aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1)+
   theme_classic()+
-  labs(x = "", y = "Prop. of new seeds in seed bank", title = "Seed Rain - Seed Bank")+
+  labs(x = "", y = "Prop. new seeds in seed bank", title = "")+
   scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
   scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
  theme(text=element_text(size=16), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
-  ylim(-0.05,1)
+scale_y_continuous(breaks = seq(0, 1, by = .2), limits = c(-0.09, 1.075))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
+
+
+prop_immigrant_seedlings_rain_bank.plot <- prop_immigrant_seedlings_rain_bank.plot  + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/SPHOBT_Sil.png",
+  x = .5, y = .5, width = .6)+
+  draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = 1.15, y = .5, width = .75) + 
+  annotate("text", x = 1.24, y = .97, label = "Vs.", size = 4)+
+  annotate("text", x = 1 , y = .25, label = "*", size = 9.5)
 
 
 
@@ -2945,18 +3278,18 @@ rain_bank <- rain_bank[!(rain_bank$Site%in%"CONTROL"),]
 
 ```{r}
 
-ggplot(rain_bank, aes(x = Number_Seeds+1, y = Number_Seedlings+1))+
-  geom_point()  +
-  scale_x_continuous(trans='log10') +
-  scale_y_continuous(trans='log10') +
-  facet_grid(col=vars(Site), labeller = labeller(Site = site.labs))+
-  geom_smooth(method = "lm") +
-  labs(x = "No. Seeds [Log 10 + 1])", y = "No. Seedlings [Log 10 + 1]")+
-  theme(axis.text = element_text( size = 12),
-        axis.text.x = element_text( size = 12),
-        axis.title = element_text( size = 16),
-        legend.position = "none",
-        strip.text = element_text(size = 16))
+# ggplot(rain_bank, aes(x = Number_Seeds+1, y = Number_Seedlings+1))+
+#   geom_point()  +
+#   scale_x_continuous(trans='log10') +
+#   scale_y_continuous(trans='log10') +
+#   facet_grid(col=vars(Site), labeller = labeller(Site = site.labs))+
+#   geom_smooth(method = "lm") +
+#   labs(x = "No. Seeds [Log 10 + 1])", y = "No. Seedlings [Log 10 + 1]")+
+#   theme(axis.text = element_text( size = 12),
+#         axis.text.x = element_text( size = 12),
+#         axis.title = element_text( size = 16),
+#         legend.position = "none",
+#         strip.text = element_text(size = 16))
 ```
 
 
@@ -3271,6 +3604,81 @@ everything_mat_hell_bray <- vegdist(everything_mat_hell, method = "bray")
 ```
 
 
+### Summary stats
+
+
+#### Morphospecies richness
+
+```{r, results = 'hide', echo = FALSE, message = FALSE, warning = FALSE}
+
+
+# # Make a new dataset that aggregates the total number of seeds per species and per site for each week
+# 
+Get.rid.of.zeros.everything <- everything_merged_dis %>% 
+                         filter(Abundance > 0)  %>% 
+                         group_by(Site, SPP6, Type) %>% 
+                         summarize(tot.abundance = sum(Abundance))
+ 
+
+# # For looking at total species richness
+Data_Everything_Lumped <- left_join(Get.rid.of.zeros.everything, traits)
+
+
+# # Count the total number of distinct species per site according to community type
+
+Uni_Above_Diversity <- Data_Everything_Lumped %>% 
+ filter(Type == "Aboveground") %>% 
+group_by(Site)  %>% 
+summarize(Species_richness = n_distinct(SPP6))
+
+Uni_Above_Diversity 
+
+Uni_Seed_Diversity <- Data_Everything_Lumped %>% 
+ filter(Type == "Seed_Rain") %>% 
+group_by(Site)  %>% 
+summarize(Species_richness = n_distinct(SPP6))
+
+Uni_Seed_Diversity 
+
+Uni_Seedling_Diversity <- Data_Everything_Lumped %>% 
+ filter(Type == "Seed_Bank") %>% 
+group_by(Site)  %>% 
+summarize(Species_richness = n_distinct(SPP6))
+
+Uni_Seedling_Diversity 
+
+
+#  unite("UniqueTran", Plot:Transect, sep = "_", remove = FALSE) 
+
+# # Count the  number of distinct native species per site according to unique transect 
+
+Native_Uni_Above_Diversity <- Data_Everything_Lumped %>% 
+  filter(Provenance == "Native",Type == "Aboveground" ) %>% 
+  group_by(Site)  %>% 
+  summarize(n_Species_richness = n_distinct(SPP6))
+
+Native_Uni_Above_Diversity
+
+
+Native_Uni_Seed_Rain_Diversity <- Data_Everything_Lumped %>% 
+  filter(Provenance == "Native",Type == "Seed_Rain" ) %>% 
+  group_by(Site)  %>% 
+  summarize(n_Species_richness = n_distinct(SPP6))
+
+Native_Uni_Seed_Rain_Diversity
+
+
+Native_Uni_Seed_Bank_Diversity <- Data_Everything_Lumped %>% 
+  filter(Provenance == "Native",Type == "Seed_Bank" ) %>% 
+  group_by(Site)  %>% 
+  summarize(n_Species_richness = n_distinct(SPP6))
+
+Native_Uni_Seed_Bank_Diversity
+
+```
+
+
+
 ### PCoA
 
 
@@ -3310,7 +3718,7 @@ labs_bray_pcoa_df_centroid <- labs_bray_pcoa_df %>%
 
 # Creates the plot
 bray_plot <- ggplot(data = labs_bray_pcoa_df, aes(x=pcoa1, y=pcoa2, color = Site, shape = Type)) +
-  geom_point(alpha = .7, cex = 2) +
+  geom_point(data = labs_bray_pcoa_df, aes(x=pcoa1, y = pcoa2), alpha = .7, cex = 2) +
   geom_point(data = labs_bray_pcoa_df_centroid , aes(x = mean.centroid.1, y = mean.centroid.2), cex = 4)+
   geom_errorbar(data = labs_bray_pcoa_df_centroid, aes(x = mean.centroid.1, y = mean.centroid.2, xmin = lower.ci.lat.1, xmax =   upper.ci.lat.1))+
   geom_errorbar(data = labs_bray_pcoa_df_centroid, aes(x = mean.centroid.1, y = mean.centroid.2, ymin = lower.ci.lon.2, ymax = upper.ci.lon.2))+
@@ -3322,10 +3730,9 @@ bray_plot <- ggplot(data = labs_bray_pcoa_df, aes(x=pcoa1, y=pcoa2, color = Site
     scale_color_manual(name = "Site", breaks = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"),
                          labels = c("Young", "Middle", "Old", "Remnant"),
                          values = c("#E69F00", "#009E73", "#56B4E9", "#0072B2"))+
-  theme(title = element_text(size = 12)) +
-theme_classic()+ 
-  theme(legend.position = "right") +
-  theme(text=element_text(size=16), legend.key.size=unit(0.5, "cm"), plot.title = element_text(hjust = 0.5))+
+  theme(text = element_text(size = 12)) +
+theme_classic()+
+  theme(text=element_text(size=14), legend.key.size=unit(0.5, "cm"), plot.title = element_text(hjust = 0.5))+
   scale_y_continuous(breaks = seq(-0.8, .4, by = .2), limits = c(-0.5, .4))+ 
   scale_x_continuous(breaks = seq(-0.8, .4, by = .2), limits = c(-0.6, .6))
 
@@ -3342,6 +3749,22 @@ library(pairwiseAdonis)
 ### Ok good everything is different from everything
 ### there are a lot more similarities between TP and PFCA 3 because we had to lump a lot of things to genus level due to discrepencies in being able to ID everything 
 pairwise.adonis2(everything_mat_hell_bray  ~ Site*Type, method= "bray", data = everything_mat_labs)
+```
+
+### Indicator Species Analysis
+
+```{r, echo = FALSE,  message = FALSE, warning = FALSE}
+# library(indicspecies)
+# 
+# everything_mat_labs_united <- everything_mat_labs %>% 
+#   unite(col = "Site_Type", c("Site", "Type"), sep = "_")
+# 
+# groups <- as.factor(everything_mat_labs_united$Site_Type)
+# # 
+#  indval <- multipatt(everything_mat_hell, groups, 
+#                  control = how(nperm=999), restcomb = c(1,2,3,4,5,6,7,8,9,10,11,12)) 
+# # 
+# summary(indval)
 ```
 
 
@@ -3405,6 +3828,21 @@ trajectory.stats2  <- trajectory.stats  %>%
 
 ```
 
+```{r}
+
+trajectory.stats2$Site_labels = factor(trajectory.stats2$Site_labels, levels=c("Remnant", "Young", "Middle", "Old"))
+
+
+direction.mod <- lm(Directionality ~ Site_labels ,data = trajectory.stats2)
+summary(direction.mod )
+Anova(direction.mod , type = "3")
+
+# Contrasts
+standardize <- emmeans::emmeans(direction.mod , "Site_labels")
+emmeans::contrast(standardize, "trt.vs.ctrl")
+
+```
+
 
 ```{r, fig.width = 4, fig.height = 4}
 trajectory.stats2$Site_labels = factor(trajectory.stats2$Site_labels, levels=c("Young", "Middle", "Old", "Remnant"))
@@ -3453,17 +3891,8 @@ everything_merged_dis # <- dataset that contains every community combined AND wi
 
 community_type_totals <- everything_merged_dis %>% 
   group_by(Site, Type, SPP6) %>% 
-  summarize(tot.abundance = sum(Abundance))
+  summarize(mean.abundance = mean(Abundance))
 
-
-community_type_lumped <- everything_merged_dis %>% 
-  group_by(Site, Type) %>% 
-  summarize(everything = sum(Abundance))
-
-
-everything_merged_dis_totals <- left_join(community_type_totals, community_type_lumped)
-
-everything_merged_dis_totals$percent <-  (everything_merged_dis_totals$tot.abundance / everything_merged_dis_totals$everything)*100
 
 
 
@@ -3477,12 +3906,12 @@ library(plotly)
 library(readr)
 
 
-everything_merged_dis_totals_test <- everything_merged_dis_totals[, c("Site", "Type", "SPP6", "tot.abundance")]
+everything_merged_dis_totals_test <- community_type_totals[, c("Site", "Type", "SPP6", "mean.abundance")]
 
 
 
 everything_merged_dis_totals_wide <- everything_merged_dis_totals_test  %>% 
-  spread(key="Type", value="tot.abundance") 
+  spread(key="Type", value="mean.abundance") 
 
 
 
@@ -3492,11 +3921,19 @@ tern.plot.data <- everything_merged_dis_totals_wide %>%
   filter(!(Seed_Rain == 0 & Aboveground == 0 & Seed_Bank == 0))
 
 
+### Include certain trait information (annual vs. perennial, provenance)
+
+tern.plot.data.traits <- left_join(tern.plot.data, traits)
+tern.plot.data.traits <- tern.plot.data.traits [, c("Site", "SPP6", "Aboveground", "Seed_Bank", "Seed_Rain", "Provenance", "Life_History_Lumped")]
+
+
+# Removed 5 species at the genus level that could have either traits
+tern.plot.data.traits <- na.omit(tern.plot.data.traits)
+
 ### Tucker Prairie
 
 
-
-tern.plot.data_TP <- tern.plot.data %>% 
+tern.plot.data_TP <- tern.plot.data.traits %>% 
   filter(Site == "TP")
 
 
@@ -3509,61 +3946,524 @@ DATA <- data.frame(x = c(1,0,0),
                    zend = c(.5,.5,0),
                    Series = c("yz","xz","xy"))
 
-
-ggtern(data=tern.plot.data_TP,aes(x=Aboveground,y=Seed_Bank, z=Seed_Rain))+
+TP.tern.plot <- ggtern(data=tern.plot.data_TP,aes(x=Aboveground,y=Seed_Bank, z=Seed_Rain))+
   geom_mask() +
-  geom_segment(data=DATA,aes(x,y,z,xend=xend,yend=yend,zend=zend, color = Series), size = .75, linetype = "dotted", show.legend = FALSE)+
-  scale_color_manual(values=c("darkgreen","darkblue","darkred"))+
- # geom_point(position= position_jitter_tern(x=0.02, y=0.02, z=0.02))+
-  geom_text(data = tern.plot.data_TP, aes(label = SPP6), size = 2)+
+  geom_segment(data = DATA, aes(x,y,z,xend=xend,yend=yend,zend=zend, color = Series), size = .75, linetype = "dotted", show.legend = FALSE)+
+  scale_color_manual(values=c("darkgreen","darkred","darkblue"))+
+ geom_point(position= position_jitter_tern(x=0.02, y=0.02, z=0.02), size = 2)+
+ # geom_text(data = tern.plot.data_TP, aes(label = SPP6), size = 2)+
   theme_rgbw()+
-    labs(title = "Tucker Prairie")
+    labs(title = "Remnant",
+        x = "Veg",
+        xarrow = "Cover %",
+        y = "SB",
+        yarrow = "Seedlings %",
+        z = "SR",
+        zarrow = "Seeds %")+
+theme(text=element_text(size=16), legend.key.size=unit(.5, "cm"), 
+      plot.title = element_text(hjust = 0.5, vjust = -3))+
+  theme_showgrid()
   
 #### Prairie Fork 1
-tern.plot.data_PFCA_1 <- tern.plot.data %>% 
+tern.plot.data_PFCA_1 <- tern.plot.data.traits %>% 
   filter(Site == "PFCA 1")
 
-ggtern(data=tern.plot.data_PFCA_1,aes(x=Aboveground,y=Seed_Bank, z=Seed_Rain))+
+Young.tern.plot <- ggtern(data=tern.plot.data_PFCA_1,aes(x=Aboveground,y=Seed_Bank, z=Seed_Rain))+
   geom_mask() +
-  geom_segment(data=DATA,aes(x,y,z,xend=xend,yend=yend,zend=zend, color = Series), size = .75, linetype = "dotted", show.legend = FALSE)+
-  scale_color_manual(values=c("darkgreen","darkblue","darkred"))+
-  #geom_point(position= position_jitter_tern(x=0.02, y=0.02, z=0.02))+
-  geom_text(data = tern.plot.data_PFCA_1, aes(label = SPP6), size = 2)+
-  theme_rgbw()+
-    labs(title = "Young")
+geom_segment(data=DATA,aes(x,y,z,xend=xend,yend=yend,zend=zend, color = Series), size = .75, linetype = "dotted", show.legend = FALSE)+
+  scale_color_manual(values=c("darkgreen","darkred","darkblue"))+
+  geom_point(position= position_jitter_tern(x=0.03, y=0.03, z=0.03))+
+ # geom_text(data = tern.plot.data_PFCA_1, aes(label = SPP6), size = 2)+
+ theme_rgbw()+
+    labs(title = "Young",
+        x = "Veg",
+        xarrow = "Cover %",
+        y = "SB",
+        yarrow = "Seedlings %",
+        z = "SR",
+        zarrow = "Seeds %")+
+theme(text=element_text(size=16), legend.key.size=unit(.5, "cm"), 
+      plot.title = element_text(hjust = 0.5, vjust = -3))
 
 
-  
 #### Prairie Fork 2
-tern.plot.data_PFCA_2 <- tern.plot.data %>% 
+tern.plot.data_PFCA_2 <- tern.plot.data.traits %>% 
   filter(Site == "PFCA 2")
 
 
-ggtern(data=tern.plot.data_PFCA_2,aes(x=Aboveground,y=Seed_Bank, z=Seed_Rain))+
+Middle.tern.plot <- ggtern(data=tern.plot.data_PFCA_2,aes(x=Aboveground,y=Seed_Bank, z=Seed_Rain))+
   geom_mask() +
   geom_segment(data=DATA,aes(x,y,z,xend=xend,yend=yend,zend=zend, color = Series), size = .75, linetype = "dotted", show.legend = FALSE)+
-  scale_color_manual(values=c("darkgreen","darkblue","darkred"))+
-  # geom_point(position= position_jitter_tern(x=0.02, y=0.02, z=0.02))+
-  geom_text(data = tern.plot.data_PFCA_2, aes(label = SPP6), size = 2)+
+  scale_color_manual(values=c("darkgreen","darkred","darkblue"))+
+  geom_point(position= position_jitter_tern(x=0.02, y=0.02, z=0.02))+
+  # geom_text(data = tern.plot.data_PFCA_2, aes(label = SPP6), size = 2)+
   theme_rgbw()+
-    labs(title = "Middle")
+    labs(title = "Middle",
+        x = "Veg",
+        xarrow = "Cover %",
+        y = "SB",
+        yarrow = "Seeds %",
+        z = "SR",
+        zarrow = "Seedlings %")+
+theme(text=element_text(size=16), legend.key.size=unit(.5, "cm"), 
+      plot.title = element_text(hjust = 0.5, vjust = -3))
+
 
 
 #### Prairie Fork 3
-tern.plot.data_PFCA_3 <- tern.plot.data %>% 
+tern.plot.data_PFCA_3 <- tern.plot.data.traits %>% 
   filter(Site == "PFCA 3")
 
-ggtern(data=tern.plot.data_PFCA_3,aes(x=Aboveground,y=Seed_Bank, z=Seed_Rain))+
+Old.tern.plot <- ggtern(data=tern.plot.data_PFCA_3,aes(x=Aboveground,y=Seed_Bank, z=Seed_Rain))+
   geom_mask() +
   geom_segment(data=DATA,aes(x,y,z,xend=xend,yend=yend,zend=zend, color = Series), size = .75, linetype = "dotted", show.legend = FALSE)+
-  scale_color_manual(values=c("darkgreen","darkblue","darkred"))+
-  #geom_point(position= position_jitter_tern(x=0.02, y=0.02, z=0.02))+
-  geom_text(data = tern.plot.data_PFCA_3, aes(label = SPP6), size = 2)+
+  scale_color_manual(values=c("darkgreen","darkred","darkblue"))+
+  geom_point(position= position_jitter_tern(x=0.02, y=0.02, z=0.02))+
+  # geom_text(data = tern.plot.data_PFCA_3, aes(label = SPP6), size = 2)+
   theme_rgbw()+
-    labs(title = "Old")
+    labs(title = "Old",
+        x = "Veg",
+        xarrow = "Cover %",
+        y = "SB",
+        yarrow = "Seeds %",
+        z = "SR",
+        zarrow = "Seedlings %")+
+theme(text=element_text(size=16), legend.key.size=unit(.5, "cm"), plot.title = element_text(hjust = 0.5,  vjust = -3))
+
+
+
+# Ok I think I'm going to color the points based on native vs. introduced and change the shape based on annual vs. perennial
+```
+
+
+
+
+
+
+```{r, fig.width = 4, fig.height = 4}
+
+### Number of seedlings at each site
+Site_seedlings <- everything_merged %>% 
+  filter(Type == "Seed_Bank") %>% 
+  group_by(Site) %>% 
+  summarize(tot.seedlings = sum(Abundance))
+
+### Number of seedlings at each transect
+Just_seedlings <- everything_merged %>% 
+  filter(Type == "Seed_Bank") %>% 
+  group_by(Site, Transect) %>% 
+  summarize(tot.seedlings = sum(Abundance))
+
+## Mean number of seedlings
+Just_seedlings_mean <- Just_seedlings %>% 
+  group_by(Site) %>% 
+  summarize(mean.seedlings = mean(tot.seedlings), sd.seedlings = sd(tot.seedlings))
+
+
+#Re-order the levels
+Just_seedlings$Site <- factor(Just_seedlings$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+
+seedlings.mod <- glm.nb(tot.seedlings ~ Site, data = Just_seedlings)
+summary(seedlings.mod)
+
+
+
+# Contrasts
+standardize <- emmeans::emmeans(seedlings.mod, "Site")
+emmeans::contrast(standardize, "trt.vs.ctrl")
+
+## 95% confidence intervals 
+
+emmeans::emmeans(seedlings.mod, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response <- c( 315.1, 118.4, 50.8, 47.2)
+lower <- c(219.9,  82.4,  35.1, 32.0) 
+upper <- c(451.5, 170.1,  73.4,   69.7)
+site <- c("PFCA 1", "PFCA 2", "PFCA 3", "TP")
+
+
+seedlings.mod.est <- data.frame(site, response, lower, upper)
+
+
+#Re-order the levels
+Just_seedlings$Site <- factor(Just_seedlings$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+  
+ggplot(Just_seedlings, aes(x= Site, y = tot.seedlings, color = Site))+
+  geom_jitter(width =0.2, size = 2, show.legend = FALSE)+
+  geom_point(data = Just_seedlings_mean, aes(x = Site, y = mean.seedlings),size = 3.5, color = "black")+
+  geom_errorbar(data = seedlings.mod.est, aes(x= site, y = response, ymin = lower, ymax = upper), width = 0.15, cex = 1, color = "black")+
+  theme_classic()+
+  labs(x= "Site", y = "Number of Seedlings")+
+  theme(text=element_text(size=18), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
+   scale_color_manual(name = "Site", breaks = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"),
+                         labels = c("Young", "Middle", "Old", "Remnant"),
+                         values = c("#1f78b4", "#a6cee3", "#b2df8a","#33a02c"))+
+   scale_x_discrete(name = "Site", breaks = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"),
+                         labels = c("Young", "Middle", "Old", "Remnant"))+  
+  geom_vline(xintercept = 3.5, linetype = "longdash")+
+  annotate("text", x = 1 , y = 850, label = "*", size = 9.5)+ 
+  annotate("text", x = 2 , y = 300, label = "*", size = 9.5)+
+  ylim(0, 1000)
+  
+```
+
+
+#### Richness
+
+
+#### Total Species Richness - Aboveground
+
+```{r, message = FALSE, echo = FALSE, warning = FALSE}
+
+### Aboveground cover
+
+cover_merged_max <- cover_merged_max[!(cover_merged_max$Site%in%"TP" & cover_merged_max$Transect%in% "7"),]
+
+
+# Make Tucker Prairie the reference level
+cover_merged_max$Site <- factor(cover_merged_max$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+
+Uni_Above_Diversity <- cover_merged_max %>% 
+group_by(Site, Transect)  %>% 
+summarize(Species_richness = n_distinct(SPP6))
+
+Uni_Above_Diversity 
+
+
+# -------
+
+# Decided to use the Poisson 
+
+Poisson_above_all <- glm(Species_richness ~ Site, family = "poisson", data = Uni_Above_Diversity)
+summary(Poisson_above_all)
 
 ```
 
+```{r, message = FALSE, echo = FALSE, warning = FALSE}
+
+## Do restored sites differ from the remnant?
+
+# Contrasts
+standardize <- emmeans(Poisson_above_all, "Site")
+contrast(standardize, "trt.vs.ctrl")
+
+## 95% confidence intervals 
+
+emmeans::emmeans(Poisson_above_all, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response.above.total <- c(33.2, 37.5, 45.5, 33.3)
+lower.above.total <- c(29.7, 33.9, 41.5, 29.9)
+upper.above.total <- c(37.2, 41.5, 49.9, 37.1)
+site <- c("TP", "PFCA 1", "PFCA 2", "PFCA 3")
+
+Poisson.above.est.all <- data.frame(site, response.above.total, lower.above.total, upper.above.total)
+
+```
+
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+
+# Make Tucker Prairie the reference level
+Uni_Above_Diversity$Site <- factor(Uni_Above_Diversity$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+
+total.richness.above.plot <- ggplot()+
+  geom_jitter(data=Uni_Above_Diversity, aes(x = Site, y = Species_richness, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Poisson.above.est.all, aes(x = site, y = response.above.total), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Poisson.above.est.all, aes(x= site, y = response.above.total, ymin = lower.above.total, ymax = upper.above.total), width = 0.15, cex = 1)+
+  theme_classic()+
+  labs(x = "", y = "Total richness", title = "")+
+  scale_color_manual(name = "Site", values=c("#1f78b4", "#a6cee3", "#b2df8a", "#33a02c"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm")) + scale_y_continuous(breaks = seq(15, 65, by = 10), limits = c(15, 65))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
+
+total.richness.above.plot
+
+
+total.richness.above.plot <- total.richness.above.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .3, y = 63, scale = 10)+
+  annotate("text", x = 2 , y = 61, label = "*", size = 9.5)
+
+
+total.richness.above.plot
+```
+
+
+#### Native Species Richness - Above
+
+```{r, message = FALSE, echo = FALSE, warning = FALSE}
+
+
+# Make Tucker Prairie the reference level
+cover_merged_max$Site <- factor(cover_merged_max$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+cover_merged_max2 <- cover_merged_max[, -4]
+cover_merged_max2 <- left_join(cover_merged_max2, traits)
+
+Uni_Above_Diversity_native <- cover_merged_max2 %>% 
+filter(Provenance == "Native") %>% 
+group_by(Site, Transect)  %>% 
+summarize(Species_richness_native = n_distinct(SPP6))
+
+Uni_Above_Diversity 
+
+
+
+# Model fitting
+
+# -------
+
+
+# -------
+
+# Decided to use the Poisson
+
+Poisson_above_native <- glm(Species_richness_native ~ Site, family = "poisson", data = Uni_Above_Diversity_native)
+summary(Poisson_above_native)
+
+```
+
+```{r, message = FALSE, echo = FALSE, warning = FALSE}
+
+## Do restored sites differ from the remnant?
+
+# Contrasts
+standardize <- emmeans(Poisson_above_native, "Site")
+contrast(standardize, "trt.vs.ctrl")
+
+
+## 95% confidence intervals 
+
+emmeans::emmeans(Poisson_above_native, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response.above <- c(31.2, 28.5, 38.5, 29.4)
+lower.above <- c(27.8,25.4, 34.8, 26.2)
+upper.above <- c(35.1, 32.0, 42.5, 33.0)
+site <- c("TP", "PFCA 1", "PFCA 2", "PFCA 3")
+
+Poisson.above.native.est <- data.frame(site, response.above ,lower.above, upper.above)
+
+```
+
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+
+# Make Tucker Prairie the reference level
+Uni_Above_Diversity_native$Site <- factor(Uni_Above_Diversity_native$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+
+Native.richness.above.plot <- ggplot()+
+  geom_jitter(data=Uni_Above_Diversity_native, aes(x = Site, y = Species_richness_native, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Poisson.above.native.est, aes(x = site, y = response.above), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Poisson.above.native.est, aes(x= site, y = response.above, ymin = lower.above, ymax = upper.above), width = 0.15, cex = 1)+
+  theme_classic()+
+  labs(x = "", y = "Native richness", title = "")+
+  scale_color_manual(name = "Site", values=c("#1f78b4", "#a6cee3", "#b2df8a", "#33a02c"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm")) + scale_y_continuous(breaks = seq(15, 65, by = 10), limits = c(15, 65))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
+
+Native.richness.above.plot 
+
+
+Native.richness.above.plot  <- Native.richness.above.plot  + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .3, y = 63, scale = 10)+
+  annotate("text", x = 2 , y = 55, label = "*", size = 9.5)
+
+
+Native.richness.above.plot 
+```
+
+
+#### Total Species Richness - soil seed banks
+
+```{r, message = FALSE, echo = FALSE, warning = FALSE}
+seed_bank_sum
+### Aboveground cover
+
+seed_bank_sum <- seed_bank_sum[!(seed_bank_sum$Site%in%"CONTROL"),]
+
+
+# Make Tucker Prairie the reference level
+seed_bank_sum$Site <- factor(seed_bank_sum $Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+
+Uni_Seedling_Diversity <- seed_bank_sum  %>% 
+group_by(Site, Transect)  %>% 
+summarize(Species_richness = n_distinct(SPP6))
+
+Uni_Seedling_Diversity
+
+
+# -------
+
+# Decided to use the Poisson 
+
+Poisson_seed_bank_all <- glm(Species_richness ~ Site, family = "poisson", data = Uni_Seedling_Diversity)
+summary(Poisson_seed_bank_all)
+
+```
+
+```{r, message = FALSE, echo = FALSE, warning = FALSE}
+
+## Do restored sites differ from the remnant?
+
+# Contrasts
+standardize <- emmeans(Poisson_seed_bank_all, "Site")
+contrast(standardize, "trt.vs.ctrl")
+
+## 95% confidence intervals 
+
+emmeans::emmeans(Poisson_seed_bank_all, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response.sb.total <- c(11.1, 13.9, 15.1, 13.6)
+lower.sb.total <- c(9.22, 11.77, 12.87, 11.50)
+upper.sb.total <- c(13.4, 16.4, 17.7, 16.1)
+site <- c("TP", "PFCA 1", "PFCA 2", "PFCA 3")
+
+Poisson.sb.est.all <- data.frame(site, response.sb.total, lower.sb.total, upper.sb.total)
+
+```
+
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+
+# Make Tucker Prairie the reference level
+Uni_Seedling_Diversity$Site <- factor(Uni_Seedling_Diversity$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+
+total.richness.sb.plot <- ggplot()+
+  geom_jitter(data=Uni_Seedling_Diversity, aes(x = Site, y = Species_richness, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Poisson.sb.est.all, aes(x = site, y = response.sb.total), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Poisson.sb.est.all, aes(x= site, y = response.sb.total, ymin = lower.sb.total, ymax = upper.sb.total), width = 0.15, cex = 1)+
+  theme_classic()+
+  labs(x = "", y = "Total richness", title = "")+
+  scale_color_manual(name = "Site", values=c("#1f78b4", "#a6cee3", "#b2df8a", "#33a02c"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm")) + scale_y_continuous(breaks = seq(0, 30, by = 5), limits = c(0, 30))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
+
+total.richness.sb.plot
+
+
+total.richness.sb.plot <- total.richness.sb.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = .3, y = 29, scale = 6)+
+  annotate("text", x = 2 , y = 25, label = "*", size = 9.5)
+
+
+total.richness.sb.plot
+```
+
+#### Native Species Richness - soil seed banks
+
+```{r, message = FALSE, echo = FALSE, warning = FALSE}
+
+
+# Make Tucker Prairie the reference level
+seed_bank_sum$Site <- factor(seed_bank_sum$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+
+seed_bank_sum2 <- left_join(seed_bank_sum, traits)
+
+Uni_SB_Diversity_native <- seed_bank_sum2 %>% 
+filter(Provenance == "Native") %>% 
+group_by(Site, Transect)  %>% 
+summarize(Species_richness_native = n_distinct(SPP6))
+
+Uni_SB_Diversity_native
+
+
+
+# Model fitting
+
+# -------
+
+# -------
+
+# Decided to use the Poisson
+
+Poisson_sb_native <- glm(Species_richness_native ~ Site, family = "poisson", data = 
+Uni_SB_Diversity_native)
+summary(Poisson_sb_native)
+
+```
+
+```{r, message = FALSE, echo = FALSE, warning = FALSE}
+
+## Do restored sites differ from the remnant?
+
+# Contrasts
+standardize <- emmeans(Poisson_sb_native, "Site")
+contrast(standardize, "trt.vs.ctrl")
+
+
+## 95% confidence intervals 
+
+emmeans::emmeans(Poisson_sb_native, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response.sb.native <- c(10.1, 9.8, 10.1, 10.6)
+lower.sb.native <- c(8.31, 8.04,  8.31,  8.76)
+upper.sb.native <- c(12.3, 11.9, 12.3, 12.8)
+site <- c("TP", "PFCA 1", "PFCA 2", "PFCA 3")
+
+Poisson.sb.native.est <- data.frame(site, response.sb.native,lower.sb.native, upper.sb.native)
+
+```
+
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+
+# Make Tucker Prairie the reference level
+Uni_SB_Diversity_native$Site <- factor(Uni_SB_Diversity_native$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+
+Native.richness.sb.plot <- ggplot()+
+  geom_jitter(data=Uni_SB_Diversity_native, aes(x = Site, y = Species_richness_native, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Poisson.sb.native.est, aes(x = site, y = response.sb.native), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Poisson.sb.native.est, aes(x= site, y = response.sb.native, ymin = lower.sb.native, ymax = upper.sb.native), width = 0.15, cex = 1)+
+  theme_classic()+
+  labs(x = "", y = "Native richness", title = "")+
+  scale_color_manual(name = "Site", values=c("#1f78b4", "#a6cee3", "#b2df8a", "#33a02c"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+  scale_y_continuous(breaks = seq(0, 30, by = 5), limits = c(0, 30))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
+
+Native.richness.sb.plot 
+
+
+Native.richness.sb.plot  <- Native.richness.sb.plot + draw_image(
+  "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = .3, y = 29, scale = 6)+
+  annotate("text", x = 4 , y = 29, label = "n.s", size = 4.5)
+
+
+Native.richness.sb.plot 
+```
 
 
 ## ---- Multipaned figures
@@ -3572,54 +4472,49 @@ ggtern(data=tern.plot.data_PFCA_3,aes(x=Aboveground,y=Seed_Bank, z=Seed_Rain))+
 ```{r, fig.width = 12, fig.height = 4}
 # Dissimilarity 
 
+# Bray-Curtis
+
 plot_grid(bray_curtis_cover_rain.plot,bray_curtis_rain_bank.plot, bray_curtis_cover_bank.plot, ncol = 3, labels = c("A)", "B)", "C)"), label_size = 18, align = 'h')
 
+# Jaccard
 
 plot_grid(jaccard_cover_rain.plot, jaccard_rain_bank.plot, jaccard_cover_bank.plot, ncol = 3, labels = c("A)", "B)", "C)"), label_size = 18, align = 'h')
 
 ```
 
 
-```{r, fig.width = 8, fig.height = 12}
+```{r, fig.width = 7, fig.height = 10}
+library(ggpubr)
 
-plot_grid(bray_plot, traj.plot, ncol = 1, labels = c("A)", "B)"), label_size = 18, align = 'v')
-
-```
+## PCoA and Trajectory
 
 
-```{r, fig.width = 12, fig.height = 4}
-plot_grid(prop_immigrant_seeds_cover_rain.plot,  prop_immigrant_seedlings_rain_bank.plot,prop_immigrant_seedlings_cover_bank.plot, ncol = 3, labels = c("A)", "B)", "C)"),
-  label_size = 18, align = 'h')
+ggarrange(bray_plot, NULL, ncol = 1, labels = c("A)", "B)"), font.label = list(size = 18), common.legend = T, align = 'v', legend = "right", hjust=.5, vjust = .5)+
+  theme(plot.margin = margin(1,1,1,1, "cm"))
 
 ```
 
 
+```{r, fig.width = 14, fig.height = 10}
+## Immigration
 
-```{r, fig.width = 4, fig.height = 4}
+plot_grid(prop_immigrant_seeds_cover_rain.plot,  prop_immigrant_seedlings_rain_bank.plot, prop_immigrant_seedlings_cover_bank.plot, prop_new_species_cover_rain.plot , prop_new_species_rain_bank.plot,prop_new_species_cover_bank.plot, hjust=.5, vjust = 1, ncol = 3, labels = c("A)", "B)", "C)", "D)", "E)", "F)"), label_size = 18, align = 'v') +theme(plot.margin = margin(1,1,1,1, "cm"))
 
-Just_seedlings <- everything_merged %>% 
-  filter(Type == "Seed_Bank") %>% 
-  group_by(Site, Transect) %>% 
-  summarize(tot.seedlings = sum(Abundance))
-
-Just_seedlings_mean <- Just_seedlings %>% 
-  group_by(Site) %>% 
-  summarize(mean.seedlings = mean(tot.seedlings), sd.seedlings = sd(tot.seedlings))
-  
-  
-ggplot(Just_seedlings, aes(x= Site, y = tot.seedlings, color = Site))+
-  geom_jitter(width =0.2, size = 2, show.legend = FALSE)+
-  geom_point(data = Just_seedlings_mean, aes(x = Site, y = mean.seedlings),size = 3.5, color = "black")+
-  geom_errorbar(data = Just_seedlings_mean, aes(x= Site, y = mean.seedlings, ymin = mean.seedlings - sd.seedlings, ymax = mean.seedlings + sd.seedlings), width = 0.15, cex = .75, color = "black")+
-  theme_classic()+
-  labs(x= "Site", y = "No. Seedlings")+
-  theme(text=element_text(size=18), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
-   scale_color_manual(name = "Site", breaks = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"),
-                         labels = c("Young", "Middle", "Old", "Remnant"),
-                         values = c("#1f78b4", "#a6cee3", "#b2df8a","#33a02c"))+
-   scale_x_discrete(name = "Site", breaks = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"),
-                         labels = c("Young", "Middle", "Old", "Remnant"))
-  
 ```
 
+
+```{r, fig.width = 16, fig.height = 8}
+grid.arrange(Young.tern.plot, Middle.tern.plot, Old.tern.plot, TP.tern.plot, ncol = 2)
+
+```
+
+
+```{r, fig.width = 12, fig.height = 14}
+plot_grid(total.richness.above.plot, Native.richness.above.plot , total.richness.sb.plot, Native.richness.sb.plot, ncol = 2, labels = c("A)", "B)", "C)", "D)"), font.label = list(size = 18),  hjust= .5, vjust = .5)+
+  theme(plot.margin = margin(1,1,1,1, "cm"))
+
+
+
+# 
+```
 

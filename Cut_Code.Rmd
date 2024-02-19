@@ -9,6 +9,41 @@ date: "2024-02-07"
 
 #### ---- Cover
 
+
+```{r}
+immigrant_resident_mass <- cover_rain_dis_long_unique %>% 
+  filter(Seed_Rain == 1 & Aboveground == 0)
+
+immigrant_resident_mass_shared <- cover_rain_dis_long_unique %>% 
+  filter(Seed_Rain == 1 & Aboveground == 1)
+
+immigrant_resident_mass <- full_join(immigrant_resident_mass, immigrant_resident_mass_shared)
+
+immigrant_resident_mass <- left_join(immigrant_resident_mass , traits)
+```
+
+```{r}
+ggplot(aes(x = as.factor(shared), y = Mean_1_Seed_Mass_g*1000), data = immigrant_resident_mass)+
+  geom_boxplot()  +
+  scale_y_continuous(trans='log10') +
+  theme_classic()+
+  labs(x = "", y = "Seed mass (mg) [log 10]")+
+  scale_x_discrete(labels = c("Immigrant", "Resident"), breaks = c("1", "2"))+
+theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))
+
+test_mod <- lm(log10(Mean_1_Seed_Mass_g*1000) ~ as.factor(shared), data = immigrant_resident_mass)
+anova(test_mod)
+
+ggplot(aes(x = as.factor(shared), y = Mean_1_Seed_Mass_g*1000), data = immigrant_resident_mass)+
+  geom_boxplot()  +
+  scale_y_continuous(trans='log10') +
+  theme_classic()+
+  labs(x = "", y = "Seed mass (mg) [log 10]")+
+  scale_x_discrete(labels = c("Immigrant", "Resident"), breaks = c("1", "2"))+
+theme(text=element_text(size=18), legend.key.size=unit(0.25, "cm"))
+
+```
+
 ```{r}
 # From the cover dataset combine with the trait dataset
 ## Remove species where I don't have any seed mass data
