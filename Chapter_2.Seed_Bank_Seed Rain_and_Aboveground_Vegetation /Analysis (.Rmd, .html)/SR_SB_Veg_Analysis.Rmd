@@ -303,6 +303,12 @@ fall_sum
 ```
 
 ```{r}
+Tucker_2019_fall_cover <- fall_cover %>% 
+  filter(Site == "TP") 
+write_xlsx(Tucker_2019_fall_cover, "Tucker_2019_fall_cover.xlsx")
+```
+
+```{r}
 ####### Seed Rain
 
 # 1.) get a sum per species per transect of cover.
@@ -3017,7 +3023,7 @@ ggplot(Just_seedlings, aes(x= Site, y = tot.seedlings, color = Site))+
   theme(text=element_text(size=18), legend.key.size=unit(1, "cm"), plot.title = element_text(hjust = 0.5))+
    scale_color_manual(name = "Site", breaks = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"),
                          labels = c("Young", "Middle", "Old", "Remnant"),
-                         values = c("#1f78b4", "#a6cee3", "#b2df8a","#33a02c"))+
+                         values = c("#E69F00", "#009E73", "#56B4E9", "#0072B2"))+
    scale_x_discrete(name = "Site", breaks = c("PFCA 1", "PFCA 2", "PFCA 3", "TP"),
                          labels = c("Young", "Middle", "Old", "Remnant"))+  
   geom_vline(xintercept = 3.5, linetype = "longdash")+
@@ -3737,6 +3743,7 @@ theme(text=element_text(size=16), legend.key.size=unit(.5, "cm"),
       plot.title = element_text(hjust = 0.5, vjust = -3))+
   theme_showgrid()
   
+
 #### Prairie Fork 1
 
 tern.plot.data_PFCA_1 <- tern.plot.data  %>% 
