@@ -167,16 +167,16 @@ library(writexl)
 ```{r}
 
 
-spring_cover <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation /Vegetative Cover Data 2019/Cleaned_Spring_Cover_Data_July_2019.xlsx")
+spring_cover <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation2/Vegetative Cover Data 2019/Cleaned_Spring_Cover_Data_July_2019.xlsx")
 
-fall_cover <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation /Vegetative Cover Data 2019/Cleaned_Fall_Cover_Data_September_2019.xlsx")
+fall_cover <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation2/Vegetative Cover Data 2019/Cleaned_Fall_Cover_Data_September_2019.xlsx")
 
 
-seed_rain <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation /Seed Rain 2019/Seed_Rain_Data_2019_FINAL.xlsx")
+seed_rain <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation2/Seed Rain 2019/Seed_Rain_Data_2019_FINAL.xlsx")
 
-seed_bank <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation /Seed Bank 2020/Seed_Bank_2020_Cleaned.xlsx")
+seed_bank <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation2/Seed Bank 2020/Seed_Bank_2020_Cleaned.xlsx")
 
-traits <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation /Traits and Species Info/SR_SB_VEG_Traits_Dataset.xlsx")
+traits <- read_excel("~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation2/Traits and Species Info/SR_SB_VEG_Traits_Dataset.xlsx")
 
 ```
 
@@ -3129,6 +3129,10 @@ Native_Uni_Seed_Bank_Diversity
 cover_merged_max <- cover_merged_max[!(cover_merged_max$Site%in%"TP" & cover_merged_max$Transect%in% "7"),]
 
 
+cover_merged_max <- cover_merged_max %>% 
+  group_by(Site, Transect, SPP6) %>% 
+  summarize(tot.cover = sum(Cover))
+
 # Make Tucker Prairie the reference level
 cover_merged_max$Site <- factor(cover_merged_max$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
 
@@ -3306,7 +3310,7 @@ Native.richness.above.plot
 
 ```{r, message = FALSE, echo = FALSE, warning = FALSE}
 seed_bank_sum
-### Aboveground cover
+### Seed Bank
 
 seed_bank_sum <- seed_bank_sum[!(seed_bank_sum$Site%in%"CONTROL"),]
 
@@ -3478,6 +3482,187 @@ Native.richness.sb.plot  <- Native.richness.sb.plot + draw_image(
 
 
 Native.richness.sb.plot 
+```
+
+### Shannon's Diversity SEED BANK
+
+```{r, echo = FALSE, results = 'hide', message = FALSE, warning = FALSE}
+
+### Make the seed bank dataset wide
+
+seed_bank_sum
+
+# Shannon's Diversity
+
+shannon_sb_com_mat <- spread(seed_bank_sum, SPP6, Number_Seedlings, fill = 0)
+
+#Calculate Shannon's Diversity
+
+Shannon <- diversity(shannon_sb_com_mat[,-c(1,2)], index="shannon")
+
+# Make it into a dataframe
+Shannon <- as.data.frame(Shannon)
+
+# Add back the column with the site labels
+Shannon_SB <- cbind(shannon_sb_com_mat[,1], Shannon)
+
+favstats(Shannon_SB$Shannon~Shannon_SB$Site)
+
+
+
+```
+
+```{r}
+
+# Make Tucker Prairie the reference level
+
+Shannon_SB$Site <- factor(Shannon_SB$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+Shannon_SB.mod <- lm(Shannon ~ Site, data = Shannon_SB)
+summary(Shannon_SB.mod)
+anova(Shannon_SB.mod)
+
+
+standardize <- emmeans(Shannon_SB.mod, "Site")
+contrast(standardize, "trt.vs.ctrl")
+
+## 95% confidence intervals 
+
+emmeans::emmeans(Shannon_SB.mod, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response.sb.shannon <- c(1.79, 1.26, 1.90, 2.10)
+lower.sb.shannon <- c(1.54, 1.01,  1.64,  1.84)
+upper.sb.shannon <- c(2.05, 1.52, 2.15, 2.35)
+site <- c("TP", "PFCA 1", "PFCA 2", "PFCA 3")
+
+Shannon.sb.est <- data.frame(site, response.sb.shannon,lower.sb.shannon, upper.sb.shannon )
+
+```
+
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+
+# Make Tucker Prairie the reference level
+Shannon_SB$Site <- factor(Shannon_SB$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+
+Shannon.sb.plot <- ggplot()+
+  geom_jitter(data=Shannon_SB, aes(x = Site, y = Shannon, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Shannon.sb.est , aes(x = site, y =response.sb.shannon), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Shannon.sb.est, aes(x= site, y = response.sb.shannon, ymin = lower.sb.shannon, ymax =  upper.sb.shannon), width = 0.15, cex = 1)+
+  theme_classic()+
+  labs(x = "", y = "SDI", title = "")+
+  scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+  scale_y_continuous(breaks = seq(0, 4, by = 1), limits = c(0, 4))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
+
+Shannon.sb.plot
+
+
+ Shannon.sb.plot  <- Shannon.sb.plot + draw_image(
+   "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/AMBART_Sil.png",
+  x = .3, y = 3.25, scale = .75)+
+  annotate("text", x = 1 , y = 2.5, label = "*", size = 9.5)
+# 
+# 
+ Shannon.sb.plot
+```
+
+
+### Shannon's Diversity COVER
+
+```{r, echo = FALSE, results = 'hide', message = FALSE, warning = FALSE}
+
+### Make the cover dataset wide
+
+cover_merged_max
+
+
+# Shannon's Diversity
+
+shannon_cover_com_mat <- spread(cover_merged_max, SPP6, tot.cover, fill = 0)
+
+#Calculate Shannon's Diversity
+
+Shannon <- diversity(shannon_cover_com_mat[,-c(1,2)], index="shannon")
+
+# Make it into a dataframe
+Shannon <- as.data.frame(Shannon)
+
+# Add back the column with the site labels
+Shannon_COVER <- cbind(shannon_cover_com_mat[,1], Shannon)
+
+favstats(Shannon_COVER$Shannon~Shannon_COVER$Site)
+
+
+
+```
+
+```{r}
+# Make Tucker Prairie the reference level
+
+Shannon_COVER$Site <- factor(Shannon_COVER$Site, levels=c("TP", "PFCA 1", "PFCA 2", "PFCA 3"))
+
+Shannon_COVER.mod <- lm(Shannon ~ Site, data = Shannon_COVER)
+summary(Shannon_COVER.mod)
+anova(Shannon_COVER.mod)
+
+
+standardize <- emmeans(Shannon_COVER.mod, "Site")
+contrast(standardize, "trt.vs.ctrl")
+
+## 95% confidence intervals 
+
+emmeans::emmeans(Shannon_COVER.mod, "Site", type = "response")
+
+## Make a new dataframe to hold the model estimates and 95% confidence interval bounds
+
+response.cover.shannon <- c(2.36, 2.18, 2.69, 2.27)
+lower.cover.shannon <- c(2.15, 1.98,  2.40,  2.07)
+upper.cover.shannon <- c(2.58, 2.38, 2.80, 2.47)
+site <- c("TP", "PFCA 1", "PFCA 2", "PFCA 3")
+
+Shannon.cover.est <- data.frame(site, response.cover.shannon,lower.cover.shannon, upper.cover.shannon )
+
+```
+
+
+```{r, message = FALSE, echo = FALSE, results = 'hide', echo = FALSE, warning = FALSE}
+ 
+# scatterplot with 95% confidence intervals (based on model estimates!)
+
+
+# Make Tucker Prairie the reference level
+Shannon_COVER$Site <- factor(Shannon_COVER$Site, levels=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"))
+
+Shannon.cover.plot <- ggplot()+
+  geom_jitter(data=Shannon_COVER, aes(x = Site, y = Shannon, color = Site), show.legend = FALSE, width = .2, size = 2.5) +
+  geom_point(data = Shannon.cover.est, aes(x = site, y = response.cover.shannon), show.legend = FALSE, size = 3.5)+
+  geom_errorbar(data = Shannon.cover.est, aes(x= site, y = response.cover.shannon, ymin = lower.cover.shannon, ymax = upper.cover.shannon), width = 0.15, cex = 1)+
+  theme_classic()+
+  labs(x = "", y = "SDI", title = "")+
+  scale_color_manual(name = "Site", values=c("#E69F00", "#009E73", "#56B4E9", "#0072B2"), breaks=c("PFCA 1", "PFCA 2", "PFCA 3", "TP"), labels = c("Young", "Middle", "Old", "Remnant"))+
+  scale_x_discrete(labels = c ("PFCA 1" = "Young", "PFCA 2" = "Middle", "PFCA 3" = "Old", "TP" = "Remnant"))+
+ theme(text=element_text(size=16), legend.key.size=unit(1, "cm"))+
+  scale_y_continuous(breaks = seq(0, 4, by = 1), limits = c(0, 4))+ 
+  geom_vline(xintercept = 3.5, linetype = "longdash")
+
+Shannon.cover.plot 
+
+
+Shannon.cover.plot   <- Shannon.cover.plot + draw_image(
+   "~/SR_SB_Veg_Analysis/Chapter_2.Seed_Bank_Seed Rain_and_Aboveground_Vegetation/Images/ECHPAL_Sil.png",
+  x = .3, y = 3.25, scale = .75)+
+  annotate("text", x = 4 , y = 4, label = "n.s.", size = 4)
+# 
+# 
+Shannon.cover.plot 
 ```
 
 
